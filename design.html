@@ -25,20 +25,21 @@ button{font:inherit;color:inherit;border:0;background:none;padding:0;cursor:poin
 .others{display:flex;gap:6px;margin:6px 14px 0}
 .others div{flex:1;background:#12141A;padding:7px 10px;display:flex;justify-content:space-between;align-items:baseline;border-left:3px solid var(--c)}
 .others b{font:italic 800 16px var(--cd);text-transform:uppercase}.others span{font:800 20px var(--cd)}
-/* šipky v kole */
-.rack{display:grid;grid-template-columns:repeat(3,1fr) auto;gap:6px;margin:8px 14px 0;align-items:stretch}
-.slot{position:relative;height:58px;background:#101217;display:flex;align-items:center;justify-content:center;overflow:hidden}
-.slot svg{transition:transform .45s cubic-bezier(.5,-.4,.6,1),opacity .45s}
-.slot.used svg{transform:translateY(-60px) rotate(-8deg);opacity:0}
-.slot .hit{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;opacity:0;transform:scale(.6);transition:all .35s cubic-bezier(.3,1.5,.5,1) .15s}
-.slot.used .hit{opacity:1;transform:scale(1)}
-.hit b{font:italic 800 26px/1 var(--cd)}.hit small{font:700 12px var(--cd);color:var(--mut);letter-spacing:1px}
-.hit b.t{color:#FF5A5A}.hit b.d{color:#2EE08F}
-.slot.next{box-shadow:inset 0 -3px 0 var(--acc)}
-.slot.next svg{animation:bob 1.6s ease-in-out infinite}
-@keyframes bob{50%{transform:translateY(-3px)}}
+/* šipky v kole: 3 tečky */
+.rack{display:grid;grid-template-columns:repeat(3,1fr) auto;gap:6px;margin:8px 14px 0}
+.slot{height:54px;background:#101217;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:5px}
+.dot{width:14px;height:14px;border-radius:50%;background:var(--doton);box-shadow:0 0 10px var(--doton);transition:all .3s cubic-bezier(.3,1.6,.5,1)}
+.slot.used .dot{background:transparent;box-shadow:inset 0 0 0 2px var(--dotoff);transform:scale(.8)}
+.slot.next .dot{animation:pulse 1.2s ease-in-out infinite}
+@keyframes pulse{50%{transform:scale(1.25)}}
+.slot b{font:italic 800 20px/1 var(--cd);min-height:20px;opacity:0;transform:translateY(6px);transition:all .3s}
+.slot.used b{opacity:1;transform:none}.slot b.t{color:#FF5A5A}.slot b.d{color:#2EE08F}
 .tot{min-width:62px;background:#1A1D24;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:0 10px}
 .tot small{font:700 11px var(--cd);letter-spacing:2px;color:var(--mut)}.tot b{font:italic 800 26px/1 var(--cd)}
+.cust{display:none;margin:4px 14px 8px;gap:8px;flex-direction:column}.cust.on{display:flex}
+.cust textarea{height:150px;background:#0A0B0F;color:var(--ink);border:1px solid #3A3D46;font:12px ui-monospace,monospace;padding:8px}
+.cust button{height:44px;background:var(--acc);color:#0A0B0F;font:800 16px var(--cd);letter-spacing:1px}
+.cust p{margin:0;font-size:12px;color:#FF7A7A}
 /* terč */
 .bdw{position:relative;width:min(100% - 4px,62dvh);margin:10px auto 0;touch-action:none;user-select:none;-webkit-user-select:none;-webkit-touch-callout:none}
 .bdw svg{display:block;width:100%;height:auto;overflow:visible}
@@ -64,7 +65,8 @@ button{font:inherit;color:inherit;border:0;background:none;padding:0;cursor:poin
 </style></head><body>
 <div class="app">
   <div class="themes" id="themes"></div>
-  <p class="hint">Návrh: vyber motiv terče nahoře, ťukej do terče (polož–posuň–pusť). Každý hráč by si motiv vybral v profilu.</p>
+  <div class="cust" id="cust"><textarea id="custta" placeholder="Sem vlož motiv ve formátu JSON (podle šablony)…"></textarea><p id="custerr"></p><button id="custok">POUŽÍT MOTIV</button></div>
+  <p class="hint">Návrh: vyber motiv nahoře nebo vlož vlastní (+ VLASTNÍ). Ťukej do terče: polož–posuň–pusť, střed nabídne 25 / 50.</p>
   <div class="score"><div><div class="nm" id="nm">Adam</div><div class="sub">NA TAHU · Ø 54,3</div></div><div class="big" id="big">301</div></div>
   <div class="others"><div style="--c:#2EC5F0"><b>Petr</b><span>245</span></div><div style="--c:#B28CFF"><b>Honza</b><span>301</span></div></div>
   <div class="rack" id="rack"></div>
@@ -79,65 +81,84 @@ const DEFS=`
 <radialGradient id="shade" cx="50%" cy="45%" r="55%"><stop offset="0" stop-color="#fff" stop-opacity=".10"/><stop offset=".65" stop-color="#000" stop-opacity="0"/><stop offset="1" stop-color="#000" stop-opacity=".45"/></radialGradient>
 <linearGradient id="silver" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#F4F6F8"/><stop offset=".5" stop-color="#8E959E"/><stop offset="1" stop-color="#E2E6EA"/></linearGradient>
 <linearGradient id="gold" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#FFF1B8"/><stop offset=".45" stop-color="#C9962B"/><stop offset="1" stop-color="#FFE08A"/></linearGradient>
-<radialGradient id="rim" cx="50%" cy="40%" r="60%"><stop offset=".85" stop-color="#1C1E24"/><stop offset="1" stop-color="#050506"/></radialGradient>
-<filter id="fiber" x="0" y="0" width="100%" height="100%"><feTurbulence type="fractalNoise" baseFrequency=".9 .05" numOctaves="2" seed="4"/><feColorMatrix values="0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 .55 0"/></filter>
+<filter id="sisal" x="0" y="0" width="100%" height="100%"><feTurbulence type="fractalNoise" baseFrequency=".9 .05" numOctaves="2" seed="4"/><feColorMatrix values="0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 .55 0"/></filter>
+<filter id="brushed" x="0" y="0" width="100%" height="100%"><feTurbulence type="fractalNoise" baseFrequency=".02 1.2" numOctaves="1" seed="2"/><feColorMatrix values="0 0 0 0 1  0 0 0 0 1  0 0 0 0 1  0 0 0 .35 0"/></filter>
 <filter id="glow" x="-20%" y="-20%" width="140%" height="140%"><feGaussianBlur stdDeviation="3" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
 <filter id="soft" x="-30%" y="-30%" width="160%" height="160%"><feDropShadow dx="0" dy="2" stdDeviation="2" flood-opacity=".6"/></filter>
-<pattern id="carbon" width="8" height="8" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><rect width="8" height="8" fill="#15171B"/><rect width="4" height="4" fill="#1F2228"/><rect x="4" y="4" width="4" height="4" fill="#1F2228"/></pattern>
-<radialGradient id="bullR" cx="40%" cy="35%" r="70%"><stop offset="0" stop-color="#FF6B6B"/><stop offset="1" stop-color="#A3151D"/></radialGradient>`;
-const TH={
- turnaj:{name:'Turnaj',s:['#141414','#EADFC4'],r:['#C62A35','#16824A'],wire:'url(#silver)',ww:1.1,lab:['#EADFC4','#141414','#fff'],fiber:.22,shade:1,bull:['#16824A','url(#bullR)'],rim:'url(#rim)'},
- neon:{name:'Neon',s:['#0B0E17','#121829'],r:['rgba(255,46,151,.16)','rgba(0,229,255,.14)'],rs:['#FF2E97','#00E5FF'],wire:'#1E2740',ww:1,lab:['#7DF9FF','#7DF9FF','#fff'],glow:1,bull:['#00E5FF','#FF2E97'],rim:'#05060B'},
- zlato:{name:'Karbon & zlato',s:['url(#carbon)','#2A2620'],r:['#7A0F1C','#0D5E3A'],wire:'url(#gold)',ww:1.4,lab:['#E9C46A','#F3E3B5','#FFF1C8'],shade:1,bull:['#0D5E3A','#7A0F1C'],rim:'#0B0B0C',edge:'url(#gold)'},
- tv:{name:'TV žlutá',s:['#1A1C22','#262A33'],r:['#FFD400','#F4F4F2'],wire:'#07080B',ww:2.4,lab:['#F4F4F2','#F4F4F2','#0A0B0F'],bull:['#F4F4F2','#FFD400'],rim:'#07080B'},
- led:{name:'Led',s:['#0E2233','#173A52'],r:['#7FD4FF','#E8F6FF'],wire:'rgba(255,255,255,.35)',ww:1,lab:['#CFEFFF','#CFEFFF','#0E2233'],shade:1,bull:['#E8F6FF','#7FD4FF'],rim:'#081521'}
-};
-let T=localStorage.getItem('dtheme')||'turnaj';
+<pattern id="carbon" width="8" height="8" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><rect width="8" height="8" fill="#000" fill-opacity=".25"/><rect width="4" height="4" fill="#fff" fill-opacity=".06"/><rect x="4" y="4" width="4" height="4" fill="#fff" fill-opacity=".06"/></pattern>`;
+/* Vestavěné motivy – stejný formát jako šablona pro vlastní motivy */
+const BUILTIN=[
+ {name:'Turnaj',single:['#141414','#EADFC4'],double:['#C62A35','#16824A'],triple:['#C62A35','#16824A'],labels:{singleDark:'#EADFC4',singleLight:'#141414',double:'#FFFFFF',triple:'#FFFFFF'},wire:{color:'#C0C6CE',width:1.1,metal:'silver'},rim:'#0D0E11',bull:{outer:'#16824A',inner:'#C62A35',label:'#FFFFFF'},texture:'sisal',shade:true,highlight:'#FFD400',dots:{on:'#FFD400',off:'#3A3D46'}},
+ {name:'Neon',single:['#0B0E17','#121829'],double:['rgba(255,46,151,.16)','rgba(0,229,255,.14)'],triple:['rgba(255,46,151,.16)','rgba(0,229,255,.14)'],labels:{singleDark:'#7DF9FF',singleLight:'#7DF9FF',double:'#FF7AC0',triple:'#7DF9FF'},wire:{color:'#1E2740',width:1,metal:'none'},rim:'#05060B',bull:{outer:'#00E5FF',inner:'#FF2E97',label:'#FFFFFF'},glow:{double:'#FF2E97',triple:'#00E5FF'},texture:'none',shade:false,highlight:'#00E5FF',dots:{on:'#00E5FF',off:'#1E2740'}},
+ {name:'Karbon & zlato',single:['#17191D','#2A2620'],double:['#7A0F1C','#0D5E3A'],triple:['#7A0F1C','#0D5E3A'],labels:{singleDark:'#E9C46A',singleLight:'#F3E3B5',double:'#FFF1C8',triple:'#FFF1C8'},wire:{color:'#C9962B',width:1.4,metal:'gold'},rim:'#0B0B0C',bull:{outer:'#0D5E3A',inner:'#7A0F1C',label:'#FFF1C8'},texture:'carbon',shade:true,edge:'#C9962B',highlight:'#FFE08A',dots:{on:'#E9C46A',off:'#3A3326'}},
+ {name:'TV žlutá',single:['#1A1C22','#262A33'],double:['#FFD400','#F4F4F2'],triple:['#FFD400','#F4F4F2'],labels:{singleDark:'#F4F4F2',singleLight:'#F4F4F2',double:'#0A0B0F',triple:'#0A0B0F'},wire:{color:'#07080B',width:2.4,metal:'none'},rim:'#07080B',bull:{outer:'#F4F4F2',inner:'#FFD400',label:'#0A0B0F'},texture:'none',shade:false,highlight:'#FF4D4D',dots:{on:'#FFD400',off:'#2A2D35'}},
+ {name:'Led',single:['#0E2233','#173A52'],double:['#7FD4FF','#E8F6FF'],triple:['#7FD4FF','#E8F6FF'],labels:{singleDark:'#CFEFFF',singleLight:'#CFEFFF',double:'#0E2233',triple:'#0E2233'},wire:{color:'rgba(255,255,255,.35)',width:1,metal:'none'},rim:'#081521',bull:{outer:'#E8F6FF',inner:'#7FD4FF',label:'#0E2233'},texture:'brushed',shade:true,highlight:'#FFD400',dots:{on:'#7FD4FF',off:'#173A52'}}
+];
+/* kontrola motivu: jen barvy a čísla, nic jiného se do terče nedostane */
+const COL=/^(#[0-9a-f]{3,8}|rgba?\(\s*[\d.]+\s*,\s*[\d.]+\s*,\s*[\d.]+\s*(,\s*[\d.]+\s*)?\)|transparent)$/i;
+function cleanTheme(t){
+ const base=BUILTIN[0],err=[];
+ const c=(v,d,k)=>{if(v==null)return d;if(typeof v==='string'&&COL.test(v.trim()))return v.trim();err.push(k+': „'+v+'“ není barva');return d;};
+ const pair=(v,d,k)=>Array.isArray(v)&&v.length===2?[c(v[0],d[0],k+'[0]'),c(v[1],d[1],k+'[1]')]:(v==null?d:(err.push(k+': čekám dvě barvy'),d));
+ const L=t.labels||{},W=t.wire||{},B=t.bull||{},D=t.dots||{},G=t.glow;
+ const out={name:String(t.name||'Vlastní').slice(0,24),single:pair(t.single,base.single,'single'),double:pair(t.double,base.double,'double'),triple:pair(t.triple||t.double,base.triple,'triple'),
+  labels:{singleDark:c(L.singleDark,base.labels.singleDark,'labels.singleDark'),singleLight:c(L.singleLight,base.labels.singleLight,'labels.singleLight'),double:c(L.double,'#FFFFFF','labels.double'),triple:c(L.triple,L.double||'#FFFFFF','labels.triple')},
+  wire:{color:c(W.color,'#C0C6CE','wire.color'),width:Math.min(4,Math.max(0,+W.width||1)),metal:['silver','gold','none'].includes(W.metal)?W.metal:'none'},
+  rim:c(t.rim,'#0D0E11','rim'),bull:{outer:c(B.outer,'#16824A','bull.outer'),inner:c(B.inner,'#C62A35','bull.inner'),label:c(B.label,'#FFFFFF','bull.label')},
+  glow:G&&typeof G==='object'?{double:c(G.double,'#FF2E97','glow.double'),triple:c(G.triple,'#00E5FF','glow.triple')}:null,
+  texture:['none','sisal','carbon','brushed'].includes(t.texture)?t.texture:'none',shade:t.shade!==false,edge:t.edge?c(t.edge,null,'edge'):null,
+  highlight:c(t.highlight,'#FFD400','highlight'),dots:{on:c(D.on,'#FFD400','dots.on'),off:c(D.off,'#3A3D46','dots.off')}};
+ return {t:out,err};
+}
+let CUSTOM=null;try{CUSTOM=JSON.parse(localStorage.getItem('dcustom'));}catch(e){}
+const allThemes=()=>BUILTIN.concat(CUSTOM?[CUSTOM]:[]);
+let T=+(localStorage.getItem('dtheme2')||0);if(!allThemes()[T])T=0;
 const P=(r,d)=>{const a=d*Math.PI/180;return[(r*Math.cos(a)).toFixed(2),(r*Math.sin(a)).toFixed(2)]};
 const arc=(r0,r1,d0,d1)=>{const[a,b]=P(r1,d0),[c,d]=P(r1,d1),[e,f]=P(r0,d1),[g,h]=P(r0,d0);return`M${a} ${b}A${r1} ${r1} 0 0 1 ${c} ${d}L${e} ${f}A${r0} ${r0} 0 0 0 ${g} ${h}Z`};
+let bullOpen=false;
 function board(){
- const t=TH[T];let o=`<defs>${DEFS}<clipPath id="bc"><circle r="${R}"/></clipPath></defs><circle r="${R+4}" fill="${t.rim}"/>`;
- let cells='',labs='',rings='';
+ const t=allThemes()[T];let o=`<defs>${DEFS}<clipPath id="bc"><circle r="${R}"/></clipPath></defs><circle r="${R+4}" fill="${t.rim}"/>`;
+ let cells='',carb='',labs='',rings='';
  ORD.forEach((n,i)=>{const m0=-90+i*18,ev=i%2===0;
-  [[RB,rS,1],[rS,rT,3],[rT,R,2]].forEach(([a,b,m])=>{const f=m===1?t.s[ev?0:1]:t.r[ev?0:1];
+  [[RB,rS,1],[rS,rT,3],[rT,R,2]].forEach(([a,b,m])=>{const f=m===1?t.single[ev?0:1]:m===3?t.triple[ev?0:1]:t.double[ev?0:1];
    cells+=`<path class="cell" id="c${n}_${m}" d="${arc(a,b,m0-9,m0+9)}" fill="${f}"/>`;
-   if(t.rs&&m!==1)rings+=`<path d="${arc(a+2,b-2,m0-7.5,m0+7.5)}" fill="none" stroke="${t.rs[ev?0:1]}" stroke-width="1.6"/>`;
-   const lr=m===1?a+.62*(b-a):(a+b)/2,[x,y]=P(lr,m0),tc=m===1?t.lab[ev?0:1]:(t.rs?t.rs[ev?0:1]:t.lab[2]);
+   if(t.texture==='carbon'&&m===1&&ev)carb+=`<path d="${arc(a,b,m0-9,m0+9)}" fill="url(#carbon)"/>`;
+   if(t.glow&&m!==1)rings+=`<path d="${arc(a+2,b-2,m0-7.5,m0+7.5)}" fill="none" stroke="${m===2?t.glow.double:t.glow.triple}" stroke-width="1.6"/>`;
+   const lr=m===1?a+.62*(b-a):(a+b)/2,[x,y]=P(lr,m0),tc=m===1?(ev?t.labels.singleDark:t.labels.singleLight):m===2?t.labels.double:t.labels.triple;
    labs+=`<text x="${x}" y="${y}" fill="${tc}" font-size="${m===1?23:m===2?15:14}" text-anchor="middle" dominant-baseline="central"${m===1?' font-style="italic" font-weight="800"':''}>${m===1?n:(m===2?'D':'T')+n}</text>`;});});
- o+=`<g>${cells}</g>`;
- if(t.fiber)o+=`<rect x="-${R}" y="-${R}" width="${2*R}" height="${2*R}" filter="url(#fiber)" opacity="${t.fiber}" clip-path="url(#bc)" pointer-events="none"/>`;
- if(t.rs)o+=`<g filter="url(#glow)">${rings}</g>`;
+ o+=`<g>${cells}${carb}</g>`;
+ if(t.texture==='sisal'||t.texture==='brushed')o+=`<rect x="-${R}" y="-${R}" width="${2*R}" height="${2*R}" filter="url(#${t.texture})" opacity="${t.texture==='sisal'?.22:.5}" clip-path="url(#bc)" pointer-events="none"/>`;
+ if(t.glow)o+=`<g filter="url(#glow)">${rings}</g>`;
  let w='';for(let i=0;i<20;i++){const d=-90+i*18-9,[x0,y0]=P(RB,d),[x1,y1]=P(R,d);w+=`<line x1="${x0}" y1="${y0}" x2="${x1}" y2="${y1}"/>`;}
  [rS,rT,R].forEach(r=>w+=`<circle r="${r}" fill="none"/>`);
- o+=`<g stroke="${t.wire}" stroke-width="${t.ww}" pointer-events="none">${w}</g>`;
+ if(t.wire.width>0)o+=`<g stroke="${t.wire.metal==='none'?t.wire.color:'url(#'+t.wire.metal+')'}" stroke-width="${t.wire.width}" pointer-events="none">${w}</g>`;
  if(t.shade)o+=`<circle r="${R}" fill="url(#shade)" pointer-events="none"/>`;
  if(t.edge)o+=`<circle r="${R+2}" fill="none" stroke="${t.edge}" stroke-width="3"/>`;
  o+=`<g id="labs">${labs}</g><g id="pins"></g>`;
- o+=`<g id="bull" filter="url(#soft)"><circle r="${RB}" fill="${t.bull[0]}"/><circle r="${RB*.55}" fill="${t.bull[1]}"/><text y="0" fill="#fff" font-size="11" text-anchor="middle" dominant-baseline="central" font-weight="800">BULL</text></g>`;
+ o+=`<g filter="url(#soft)"><circle r="${RB}" fill="${t.bull.outer}"/><circle r="${RB*.55}" fill="${t.bull.inner}"/><text fill="${t.bull.label}" font-size="11" text-anchor="middle" dominant-baseline="central" font-weight="800">BULL</text></g>`;
+ if(bullOpen){o+=`<circle r="${R+4}" fill="#07080B" opacity=".62"/>`;[[1,-64,t.bull.outer,'25','BULL'],[2,64,t.bull.inner,'50','BULLSEYE']].forEach(([m,x,c,v,l])=>{o+=`<line x1="0" y1="0" x2="${x}" y2="-80" stroke="${t.highlight}" stroke-width="3"/><circle cx="${x}" cy="-80" r="42" fill="${c}" stroke="#fff" stroke-width="2"/><text x="${x}" y="-88" fill="${t.bull.label}" font-size="30" text-anchor="middle" dominant-baseline="central" font-weight="800">${v}</text><text x="${x}" y="-62" fill="${t.bull.label}" font-size="12" text-anchor="middle" dominant-baseline="central">${l}</text>`;});o+=`<circle r="${RB}" fill="${t.bull.inner}" stroke="${t.highlight}" stroke-width="4"/>`;}
  return`<svg viewBox="${-VB/2} ${-VB/2} ${VB} ${VB}">${o}</svg>`;
 }
-const dartSvg=c=>`<svg viewBox="0 0 40 80" style="height:52px"><path d="M20 0l1.8 15h-3.6z" fill="#D5DAE1"/><rect x="15" y="15" width="10" height="22" rx="2.5" fill="#6B7383"/><g stroke="#2B2F37" stroke-width="1.4">${[18,21,24,27,30,33].map(y=>`<line x1="15" y1="${y}" x2="25" y2="${y}"/>`).join('')}</g><rect x="18.3" y="37" width="3.4" height="17" fill="#2A2E37"/><path d="M20 48L3 79l17-8 17 8z" fill="${c}"/><path d="M20 48v23" stroke="rgba(0,0,0,.35)" stroke-width="1.4"/></svg>`;
 const S={darts:[],score:301};
 function rack(){
- const el=document.getElementById('rack');let h='';
- for(let i=0;i<3;i++){const d=S.darts[i];
-  h+=`<div class="slot${d?' used':''}${i===S.darts.length?' next':''}">${dartSvg('#FFD400')}<div class="hit">${d?`<b class="${d.m===3?'t':d.m===2?'d':''}">${d.l}</b><small>${d.v}</small>`:''}</div></div>`;}
- h+=`<div class="tot"><small>KOLO</small><b>${S.darts.reduce((a,d)=>a+d.v,0)}</b></div>`;
- el.innerHTML=h;
+ const t=allThemes()[T],el=document.getElementById('rack');el.style.setProperty('--doton',t.dots.on);el.style.setProperty('--dotoff',t.dots.off);let h='';
+ for(let i=0;i<3;i++){const d=S.darts[i];h+=`<div class="slot${d?' used':''}${i===S.darts.length?' next':''}"><i class="dot"></i><b class="${d?(d.m===3?'t':d.m===2?'d':''):''}">${d?d.l:''}</b></div>`;}
+ h+=`<div class="tot"><small>KOLO</small><b>${S.darts.reduce((a,d)=>a+d.v,0)}</b></div>`;el.innerHTML=h;
 }
-function themes(){document.getElementById('themes').innerHTML=Object.entries(TH).map(([k,t])=>`<button class="chip" data-t="${k}" aria-pressed="${k===T}">${t.name}</button>`).join('');}
-function draw(){const w=document.getElementById('bdw');w.querySelector('svg')&&w.querySelector('svg').remove();w.insertAdjacentHTML('afterbegin',board());themes();rack();}
-document.getElementById('themes').onclick=e=>{const b=e.target.closest('[data-t]');if(!b)return;T=b.dataset.t;localStorage.setItem('dtheme',T);draw();};
+function themes(){document.getElementById('themes').innerHTML=allThemes().map((t,i)=>`<button class="chip" data-t="${i}" aria-pressed="${i===T}">${t.name.replace(/[<>&"]/g,'')}</button>`).join('')+`<button class="chip" data-t="+">+ VLASTNÍ</button>`;}
+function draw(){const w=document.getElementById('bdw'),old=document.getElementById('pins'),keep=old?old.innerHTML.replace(/class="ripple"[^>]*>/g,'>'):'';w.querySelector('svg')&&w.querySelector('svg').remove();w.insertAdjacentHTML('afterbegin',board());document.getElementById('pins').innerHTML=keep;themes();rack();}
+document.getElementById('themes').onclick=e=>{const b=e.target.closest('[data-t]');if(!b)return;if(b.dataset.t==='+'){const c=document.getElementById('cust');c.classList.toggle('on');if(CUSTOM)document.getElementById('custta').value=JSON.stringify(CUSTOM,null,1);return;}T=+b.dataset.t;localStorage.setItem('dtheme2',T);draw();};
+document.getElementById('custok').onclick=()=>{const er=document.getElementById('custerr');let j;try{j=JSON.parse(document.getElementById('custta').value.replace(/^[^{]*/,'').replace(/[^}]*$/,''));}catch(e){er.textContent='Text není platný JSON – zkopíruj jen blok { … } z odpovědi AI.';return;}const r=cleanTheme(j);CUSTOM=r.t;localStorage.setItem('dcustom',JSON.stringify(CUSTOM));T=BUILTIN.length;localStorage.setItem('dtheme2',T);er.textContent=r.err.length?'Opraveno na výchozí: '+r.err.join(' · '):'';if(!r.err.length)document.getElementById('cust').classList.remove('on');draw();};
 /* zásahy */
 let hold=null,cur=null;
-function hitAt(ux,uy){const r=Math.hypot(ux,uy);if(r<=RB)return{n:25,m:2,l:'BULL',v:50};if(r>R)return null;const a=Math.atan2(uy,ux)*180/Math.PI+90,i=((Math.round(a/18)%20)+20)%20,n=ORD[i],m=r<=rS?1:r<=rT?3:2;return{n,m,l:(m===3?'T':m===2?'D':'')+n,v:n*m};}
+function hitAt(ux,uy){if(bullOpen){for(const[m,x]of[[1,-64],[2,64]])if(Math.hypot(ux-x,uy+80)<=42)return{n:25,m,l:m===2?'BULL':'25',v:25*m,br:1};return null;}const r=Math.hypot(ux,uy);if(r<=RB)return{bull:1,l:'BULL?'};if(r>R)return null;const a=Math.atan2(uy,ux)*180/Math.PI+90,i=((Math.round(a/18)%20)+20)%20,n=ORD[i],m=r<=rS?1:r<=rT?3:2;return{n,m,l:(m===3?'T':m===2?'D':'')+n,v:n*m};}
 function pt(e){const w=document.getElementById('bdw'),r=w.getBoundingClientRect(),k=VB/r.width;return{px:e.clientX-r.left,py:e.clientY-r.top,w:r.width,ux:(e.clientX-r.left-r.width/2)*k,uy:(e.clientY-r.top-r.height/2)*k};}
-function paint(h,on){if(!h||h.n===25)return;const el=document.getElementById('c'+h.n+'_'+h.m);if(el)el.style.filter=on?'brightness(1.8) saturate(1.3) drop-shadow(0 0 6px #FFD400)':'';}
-function show(h,p){if((h&&h.l)!==(cur&&cur.l)){paint(cur,false);paint(h,true);cur=h;}const t=document.getElementById('tag');if(!h){t.className='tag';return;}t.innerHTML=`${h.l}<small>${h.v} BODŮ · ZBUDE ${S.score-h.v}</small>`;t.className='tag on';t.style.left=Math.max(60,Math.min(p.w-60,p.px))+'px';t.style.top=(p.py-44)+'px';}
+function paint(h,on){if(!h||h.n===25||h.bull)return;const el=document.getElementById('c'+h.n+'_'+h.m);if(el)el.style.filter=on?'brightness(1.8) saturate(1.3) drop-shadow(0 0 6px '+allThemes()[T].highlight+')':'';}
+function show(h,p){if((h&&h.l)!==(cur&&cur.l)){paint(cur,false);paint(h,true);cur=h;}const t=document.getElementById('tag');if(!h){t.className='tag';return;}t.innerHTML=h.bull?`BULL<small>25 / 50</small>`:`${h.l}<small>${h.v} BODŮ · ZBUDE ${S.score-h.v}</small>`;t.style.background=allThemes()[T].highlight;t.className='tag on';t.style.left=Math.max(60,Math.min(p.w-60,p.px))+'px';t.style.top=(p.py-44)+'px';}
 const bdw=document.getElementById('bdw');
 bdw.addEventListener('pointerdown',e=>{e.preventDefault();bdw.setPointerCapture(e.pointerId);const p=pt(e);hold=p;show(hitAt(p.ux,p.uy),p);});
 bdw.addEventListener('pointermove',e=>{if(!hold)return;const p=pt(e);hold=p;show(hitAt(p.ux,p.uy),p);});
-bdw.addEventListener('pointerup',e=>{if(!hold)return;const p=hold;hold=null;const h=cur;paint(cur,false);cur=null;document.getElementById('tag').className='tag';if(h)throwDart(h,p);});
+bdw.addEventListener('pointerup',e=>{if(!hold)return;const p=hold;hold=null;const h=cur;paint(cur,false);cur=null;document.getElementById('tag').className='tag';if(bullOpen){bullOpen=false;draw();if(h)throwDart(h,{ux:0,uy:0});return;}if(h&&h.bull){bullOpen=true;draw();return;}if(h)throwDart(h,p);});
 function throwDart(h,p){
  if(S.darts.length>=3)return;
  h.pin=!!p;S.darts.push(h);S.score-=h.v;
