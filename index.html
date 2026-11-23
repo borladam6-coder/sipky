@@ -251,6 +251,7 @@ button:disabled{cursor:default}
 'use strict';
 const $app = document.getElementById('app'), $sheet = document.getElementById('sheet'), $toast = document.getElementById('toast');
 const KEY = 'sipky.v1';
+const APP_VERSION = '1.2';
 const PALETTE = ['#FF6B3D','#2EC5F0','#B28CFF','#19C37D','#FF8FB1','#FFB547','#7CC4FF','#D9DCE1'];
 const TEAMC = ['#FF6B3D','#2EC5F0','#B28CFF','#19C37D'], TEAMN = ['A','B','C','D'];
 const CR = [20,19,18,17,16,15,25];
@@ -1076,7 +1077,7 @@ V.profiles = () => {
   const syncTxt = {file: 'Data se ukládají do souboru v tomto počítači (složka %APPDATA%\\Sipky). Záloha do souboru je pojistka navíc.', cloud: 'Data se ukládají k tvému účtu – stejná na mobilu i na počítači. Záloha do souboru je pojistka navíc.', loading: 'Načítám data z účtu…', offline: 'Data z účtu teď nejdou načíst – ukládám do tohoto prohlížeče.', local: 'Data jsou uložená v tomto prohlížeči. Občas si udělej zálohu do souboru.'}[S.sync];
   return `<div class="app"><header class="shdr"><h1>HRÁČI</h1><button class="btn acc" style="min-height:44px;font-style:italic;font-weight:800" data-a="newpOpen" data-ctx="">${IC.plus} NOVÝ HRÁČ</button></header>
   <main class="col g22" style="flex:1;padding-bottom:24px"><div style="border-top:1px solid var(--ln)">${rows || '<div class="empty"><b>ZATÍM ŽÁDNÍ HRÁČI</b><p class="note">Přidej první profil – stačí jméno.</p></div>'}</div>
-  <section class="col g8" style="padding:0 20px"><h2 class="lbl">ZÁLOHA DAT</h2><p class="note" style="font-size:14px;color:#D5D7DC">${syncTxt}</p><div class="row2"><button class="btn" data-a="exportOpen">${IC.dl} EXPORTOVAT</button><button class="btn" data-a="importOpen">${IC.ul} IMPORTOVAT</button></div><span class="lbl" style="font-size:12px;letter-spacing:1.5px">POSLEDNÍ ZÁLOHA ${S.meta.lastBackup ? dstr(S.meta.lastBackup) + ' ' + new Date(S.meta.lastBackup).getFullYear() : '– ZATÍM ŽÁDNÁ'}</span></section></main>${nav('profiles')}</div>`;
+  <section class="col g8" style="padding:0 20px"><h2 class="lbl">ZÁLOHA DAT</h2><p class="note" style="font-size:14px;color:#D5D7DC">${syncTxt}</p><div class="row2"><button class="btn" data-a="exportOpen">${IC.dl} EXPORTOVAT</button><button class="btn" data-a="importOpen">${IC.ul} IMPORTOVAT</button></div><span class="lbl" style="font-size:12px;letter-spacing:1.5px">POSLEDNÍ ZÁLOHA ${S.meta.lastBackup ? dstr(S.meta.lastBackup) + ' ' + new Date(S.meta.lastBackup).getFullYear() : '– ZATÍM ŽÁDNÁ'}</span><span class="lbl" style="font-size:11px;letter-spacing:1.5px;opacity:.7">VERZE ${APP_VERSION}</span></section></main>${nav('profiles')}</div>`;
 };
 function sheetBody(sh) {
   const g = S.current;
