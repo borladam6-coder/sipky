@@ -114,6 +114,10 @@ button:disabled{cursor:default}
 .sb.on strong{font-size:84px;letter-spacing:-2px}
 .sb.cp{height:46px}.sb.cp strong{font-size:32px}.sb.cp .m span{display:none}.sb.cp .m b{font-size:20px}
 .sb.on.cp{height:80px}.sb.on.cp strong{font-size:64px}.sb.on.cp .m span{display:block}
+.sb.on.bm{height:70px}.sb.on.bm strong{font-size:60px}
+.sbo{display:flex;gap:2px;overflow-x:auto;scrollbar-width:none}.sbo::-webkit-scrollbar{display:none}
+.sbo div{flex:1 0 30%;background:var(--s2);border-left:4px solid var(--c);height:38px;display:flex;align-items:center;justify-content:space-between;gap:8px;padding:0 10px;min-width:0}
+.sbo b{font:italic 800 16px var(--cd);text-transform:uppercase;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.sbo span{font:italic 800 22px var(--cd);color:#D5D7DC}
 .info{display:flex;align-items:center;gap:8px;min-height:42px;margin:2px 16px 0;background:#0F1116;border:1px solid var(--ln);padding:6px 14px;font:700 13px var(--cd);letter-spacing:2px;color:var(--mut);text-transform:uppercase;flex-wrap:wrap;flex:none}
 .info .r{margin-left:auto}
 .flash{position:fixed;top:58px;left:50%;transform:translateX(-50%);z-index:5;width:min(488px,calc(100% - 32px));background:var(--ink);color:#0A0B0F;padding:10px 16px;font:italic 800 22px/1.1 var(--cd);text-transform:uppercase;clip-path:polygon(0 0,100% 0,calc(100% - 14px) 100%,0 100%);animation:fl .22s ease-out;pointer-events:none}
@@ -123,11 +127,17 @@ button:disabled{cursor:default}
 .chip{background:var(--dbl);color:#0A0B0F;font:italic 800 18px var(--cd);letter-spacing:0;padding:2px 10px}
 .chip.t{background:var(--tpl)}.chip.s{background:var(--ink)}
 .rnd{display:grid;grid-template-columns:repeat(3,minmax(0,1fr)) 84px;gap:2px;background:var(--ln);padding:2px;margin:10px 16px 0;flex:none}
-.rnd>div{background:var(--s1);height:60px;display:flex;flex-direction:column;align-items:center;justify-content:center}
-.rnd b{font:italic 800 28px/1 var(--cd)}
+.rnd>div{background:var(--s1);height:56px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:5px}
+.rnd b{font:italic 800 24px/1 var(--cd);min-height:24px}
+.rdot{width:14px;height:14px;border-radius:50%;background:var(--don);box-shadow:0 0 10px var(--don);transition:all .3s cubic-bezier(.3,1.6,.5,1)}
+.rnd .used .rdot{background:transparent;box-shadow:inset 0 0 0 2px var(--doff);transform:scale(.8)}
+.rnd .next .rdot{animation:rpulse 1.2s ease-in-out infinite}
+@keyframes rpulse{50%{transform:scale(1.3)}}
+.rnd .used b{animation:rin .3s ease-out}@keyframes rin{from{opacity:0;transform:translateY(6px)}}
 .rnd small{font:700 13px var(--cd);color:var(--mut)}
 .rnd .nx{border:2px dashed var(--acc);font:700 13px var(--cd);letter-spacing:1.5px;color:var(--mut)}
 .rnd .tot{background:var(--s3)}
+.rnd .tot b{font-size:26px}
 .rnd .tot small{font-size:11px;letter-spacing:2px}
 .t3{color:var(--tpl)}.t2{color:var(--dbl)}
 .kp{margin:10px 16px calc(14px + env(safe-area-inset-bottom));display:flex;flex-direction:column;gap:2px;background:var(--ln);padding:2px;flex:none}
@@ -196,6 +206,12 @@ button:disabled{cursor:default}
 .sw{display:grid;grid-template-columns:repeat(8,minmax(0,1fr));gap:6px}
 .sw button{height:44px;border:3px solid transparent}
 .sw button[aria-pressed=true]{border-color:var(--ink);box-shadow:inset 0 0 0 2px #0A0B0F}
+.thp{width:150px;margin:2px auto 4px}.thp svg{display:block;width:100%;height:auto}.thp text{font-family:var(--cd);font-weight:700}
+.ths{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+.ths button{min-height:44px;display:flex;align-items:center;gap:5px;padding:0 10px;background:#1A1C22;border:2px solid transparent;font:700 15px var(--cd);letter-spacing:.5px;text-transform:uppercase;text-align:left;overflow:hidden}
+.ths button span{margin-left:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ths button[aria-pressed=true]{border-color:var(--acc)}
+.ths i{width:10px;height:10px;border-radius:50%;flex:none}
 /* statistiky */
 .shdr{padding:28px 20px 12px;display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:end;gap:12px}
 .shdr h1{margin:0;font:italic 800 44px/.9 var(--cd)}
@@ -207,6 +223,18 @@ button:disabled{cursor:default}
 .bars{height:70px;display:flex;align-items:flex-end;gap:3px}
 .bars i{flex:1;background:#3A3D46;display:block}
 .bars i:last-child{background:var(--acc)}
+.stc{display:block;width:100%;text-align:left;background:var(--s1);border-left:4px solid var(--pc);padding:12px 12px 12px 14px;margin-top:8px;transition:transform .12s}
+.stc:active{transform:scale(.98)}
+.stc-h{display:flex;align-items:center;gap:10px}
+.stc .rk{font:italic 800 24px/1 var(--cd);color:var(--mut);min-width:18px}.stc .rk.gold{color:var(--acc)}
+.stc-h b{font:italic 800 24px/1 var(--cd);text-transform:uppercase;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.stc-h small{font:700 12px var(--cd);letter-spacing:1px;color:var(--mut);white-space:nowrap}
+.stc-g{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:4px;margin-top:10px}
+.stc-g div{background:var(--bg);padding:7px 7px 6px}
+.stc-g span{display:block;font:700 10px var(--cd);letter-spacing:1.2px;color:var(--mut);white-space:nowrap;overflow:hidden}
+.stc-g b{display:block;font:italic 800 24px/1.1 var(--cd);white-space:nowrap}
+.stc-g .best b{color:var(--acc)}
+.lnk{color:var(--ink);text-decoration:underline;font:inherit}
 .lrow{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;min-height:42px;border-top:1px solid var(--ln);gap:12px;padding:4px 0}
 .lrow span{color:#D5D7DC}
 .lrow b{font:italic 800 24px var(--cd);white-space:nowrap}
@@ -265,7 +293,7 @@ button:disabled{cursor:default}
 'use strict';
 const $app = document.getElementById('app'), $sheet = document.getElementById('sheet'), $toast = document.getElementById('toast');
 const KEY = 'sipky.v1';
-const APP_VERSION = '1.6';
+const APP_VERSION = '1.7';
 const PALETTE = ['#FF6B3D','#2EC5F0','#B28CFF','#19C37D','#FF8FB1','#FFB547','#7CC4FF','#D9DCE1'];
 const TEAMC = ['#FF6B3D','#2EC5F0','#B28CFF','#19C37D'], TEAMN = ['A','B','C','D'];
 const CR = [20,19,18,17,16,15,25];
@@ -533,7 +561,7 @@ const sideOf = (m, pid) => m.sides.findIndex(s => s.players.some(p => p.id === p
 const pMatches = (pid, type) => S.matches.filter(m => m.type === type && sideOf(m, pid) >= 0);
 function statsX01(pid) {
   const ms = pMatches(pid, 'x01');
-  let darts = 0, pts = 0, f9d = 0, f9p = 0, coA = 0, coS = 0, hiCo = 0, b100 = 0, b140 = 0, b180 = 0, wins = 0, minD = Infinity;
+  let darts = 0, pts = 0, f9d = 0, f9p = 0, coA = 0, coS = 0, hiCo = 0, b100 = 0, b140 = 0, b180 = 0, wins = 0, minD = Infinity, hiTurn = 0, d10 = 0, p10 = 0;
   const per = [];
   for (const m of ms) {
     const si = sideOf(m, pid), ts = m.turns.filter(t => t.p === pid);
@@ -541,36 +569,40 @@ function statsX01(pid) {
     ts.forEach((t, i) => {
       const dl = t.d.length; darts += dl; pts += t.pts; md += dl; mp += t.pts;
       if (i < 3) { f9d += dl; f9p += t.pts; }
+      if (!t.b) hiTurn = Math.max(hiTurn, t.pts);
       if (!t.b) { if (t.pts === 180) b180++; else if (t.pts >= 140) b140++; else if (t.pts >= 100) b100++; }
       const opened = !(m.settings.inMode === 'double' && t.rb === m.settings.start);
       if (opened && checkout(t.rb, 3, m.settings.outMode)) { coA++; if (t.co) coS++; }
       if (t.co) hiCo = Math.max(hiCo, t.rb);
     });
     if (md) per.push(mp / md * 3);
+    if (ms.indexOf(m) >= ms.length - 10) { d10 += md; p10 += mp; }
     if (m.winner === si) { wins++; minD = Math.min(minD, m.turns.filter(t => t.s === si).reduce((a, t) => a + t.d.length, 0)); }
   }
-  return {games: ms.length, wins, avg: darts ? pts / darts * 3 : NaN, f9: f9d ? f9p / f9d * 3 : NaN, coA, coS, hiCo, b100, b140, b180, minD, per: per.slice(-10)};
+  return {games: ms.length, wins, hiTurn, avg10: d10 ? p10 / d10 * 3 : NaN, avg: darts ? pts / darts * 3 : NaN, f9: f9d ? f9p / f9d * 3 : NaN, coA, coS, hiCo, b100, b140, b180, minD, per: per.slice(-10)};
 }
 function statsCricket(pid) {
   const ms = pMatches(pid, 'cricket');
-  let mk = 0, turns = 0, wins = 0, best = NaN;
+  let mk = 0, turns = 0, wins = 0, best = NaN, hiMk = 0, mk10 = 0, t10 = 0;
   for (const m of ms) {
     const ts = m.turns.filter(t => t.p === pid), k = ts.reduce((a, t) => a + t.mk, 0);
-    mk += k; turns += ts.length;
+    mk += k; turns += ts.length; ts.forEach(t => { hiMk = Math.max(hiMk, t.mk); });
+    if (ms.indexOf(m) >= ms.length - 10) { mk10 += k; t10 += ts.length; }
     if (ts.length) best = Number.isFinite(best) ? Math.max(best, k / ts.length) : k / ts.length;
     if (m.winner === sideOf(m, pid)) wins++;
   }
-  return {games: ms.length, wins, mpr: turns ? mk / turns : NaN, best, mk};
+  return {games: ms.length, wins, mpr: turns ? mk / turns : NaN, mpr10: t10 ? mk10 / t10 : NaN, hiMk, best, mk};
 }
 function statsCU(pid) {
   const ms = pMatches(pid, 'countup');
-  let pts = 0, turns = 0, wins = 0, hi = 0;
+  let pts = 0, turns = 0, wins = 0, hi = 0, hiTurn = 0, p10 = 0, t10 = 0;
   for (const m of ms) {
     const ts = m.turns.filter(t => t.p === pid), p = ts.reduce((a, t) => a + t.pts, 0);
-    pts += p; turns += ts.length; hi = Math.max(hi, p);
+    pts += p; turns += ts.length; hi = Math.max(hi, p); ts.forEach(t => { hiTurn = Math.max(hiTurn, t.pts); });
+    if (ms.indexOf(m) >= ms.length - 10) { p10 += p; t10 += ts.length; }
     if (m.winner === sideOf(m, pid)) wins++;
   }
-  return {games: ms.length, wins, hi, perGame: ms.length ? pts / ms.length : NaN, perRound: turns ? pts / turns : NaN};
+  return {games: ms.length, wins, hi, hiTurn, perRound10: t10 ? p10 / t10 : NaN, perGame: ms.length ? pts / ms.length : NaN, perRound: turns ? pts / turns : NaN};
 }
 function h2h(pid) {
   const map = {};
@@ -675,7 +707,7 @@ function importData(txt) {
   let np = 0, nm = 0;
   d.players.forEach(p => {
     if (p && p.id && p.name && !pids.has(String(p.id))) {
-      S.players.push({id: String(p.id), name: String(p.name).slice(0, 20), color: /^#[0-9a-f]{6}$/i.test(p.color) ? p.color : PALETTE[S.players.length % PALETTE.length]});
+      S.players.push(Object.assign({id: String(p.id), name: String(p.name).slice(0, 20), color: /^#[0-9a-f]{6}$/i.test(p.color) ? p.color : PALETTE[S.players.length % PALETTE.length]}, typeof p.theme === 'string' ? {theme: p.theme} : p.theme && typeof p.theme === 'object' ? {theme: cleanTheme(p.theme).t} : {}));
       pids.add(String(p.id)); np++;
     }
   });
@@ -1088,6 +1120,12 @@ V.players = () => {
   return `<div class="app">${hdr('HRÁČI A TÝMY', 'setup', `<span class="cnt"><em>${n}</em>/8</span>`)}<main class="pad col g14">${body}</main><div class="foot"><button class="cta" data-a="start" ${canStart(d) ? '' : 'disabled'}>ZAČÍT HRU ${IC.arrow}</button>${!canStart(d) && d.teams ? '<p class="note" style="margin-top:8px">Potřebuješ aspoň 2 týmy s hráči.</p>' : ''}</div></div>`;
 };
 function scoreBoard(g) {
+  if (S.inp === 'board') {
+    const s = g.sides[g.cur], a = sideAgg(g, g.cur), p = curPlayer(g), n = g.sides.length;
+    const avg = g.type === 'x01' ? 'Ø ' + fmt(a.d ? a.p / a.d * 3 : NaN) : 'Ø/KOLO ' + fmt(a.t ? a.p / a.t : NaN);
+    const others = Array.from({length: n - 1}, (_, k) => g.sides[(g.cur + 1 + k) % n]);
+    return `<section class="sbw" aria-label="Skóre"><div class="sb on bm"><i style="background:${s.color}"></i><div class="m"><b>${esc(s.team ? p.name : s.name)}</b><span>${s.team ? esc(s.name) + ' · ' : 'NA TAHU · '}${avg}</span></div><strong>${sideVal(g, s)}</strong></div>${others.length ? `<div class="sbo">${others.map(x => `<div style="--c:${x.color}"><b>${esc(x.name)}</b><span>${sideVal(g, x)}</span></div>`).join('')}</div>` : ''}</section>`;
+  }
   const cp = g.sides.length > 3;
   return `<section class="sbw" aria-label="Skóre">${g.sides.map((s, i) => {
     const on = i === g.cur, a = sideAgg(g, i), p = curPlayer(g, i);
@@ -1126,17 +1164,49 @@ function infoBar(g) {
   return `<div class="info">NA ŘADĚ ${who}</div>`;
 }
 function roundStrip(g) {
+  const t = themeOf(curPlayer(g).id);
   const cells = [0, 1, 2].map(i => {
-    const d = g.darts[i];
-    if (d) {
-      const cls = d.n && d.m === 3 ? 't3' : d.n && d.m === 2 ? 't2' : '';
-      return `<div><b class="${cls}">${dartLbl(d)}</b><small>${g.type === 'cricket' ? (d.c ? '+' + d.c + '×' : '—') : d.c}</small></div>`;
-    }
-    return i === g.darts.length ? `<div class="nx">${i + 1}. ŠIPKA</div>` : '<div></div>';
+    const d = g.darts[i], cls = d && d.n && d.m === 3 ? 't3' : d && d.n && d.m === 2 ? 't2' : '';
+    return `<div class="${d ? 'used' : i === g.darts.length ? 'next' : ''}"><i class="rdot"></i><b class="${cls}">${d ? dartLbl(d) : ''}</b></div>`;
   }).join('');
   const tot = g.type === 'cricket' ? `<small>ZÁSAHY</small><b>${g.tMarks}</b>` : `<small>KOLO</small><b>${g.tPts}</b>`;
-  return `<section class="rnd" aria-label="Aktuální kolo">${cells}<div class="tot">${tot}</div></section>`;
+  return `<section class="rnd" style="--don:${t.dots.on};--doff:${t.dots.off}" aria-label="Aktuální kolo – ${g.darts.length} ze 3 šipek">${cells}<div class="tot">${tot}</div></section>`;
 }
+/* ---------- motivy terče (každý hráč svůj, šablona: motivy/SABLONA.md) ---------- */
+const TDEFS = `<radialGradient id="tShade" cx="50%" cy="45%" r="55%"><stop offset="0" stop-color="#fff" stop-opacity=".10"/><stop offset=".65" stop-color="#000" stop-opacity="0"/><stop offset="1" stop-color="#000" stop-opacity=".45"/></radialGradient>
+<linearGradient id="tSilver" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#F4F6F8"/><stop offset=".5" stop-color="#8E959E"/><stop offset="1" stop-color="#E2E6EA"/></linearGradient>
+<linearGradient id="tGold" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#FFF1B8"/><stop offset=".45" stop-color="#C9962B"/><stop offset="1" stop-color="#FFE08A"/></linearGradient>
+<filter id="tSisal" x="0" y="0" width="100%" height="100%"><feTurbulence type="fractalNoise" baseFrequency=".9 .05" numOctaves="2" seed="4"/><feColorMatrix values="0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 .55 0"/></filter>
+<filter id="tBrushed" x="0" y="0" width="100%" height="100%"><feTurbulence type="fractalNoise" baseFrequency=".02 1.2" numOctaves="1" seed="2"/><feColorMatrix values="0 0 0 0 1  0 0 0 0 1  0 0 0 0 1  0 0 0 .35 0"/></filter>
+<filter id="tGlow" x="-20%" y="-20%" width="140%" height="140%"><feGaussianBlur stdDeviation="3" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+<filter id="tSoft" x="-30%" y="-30%" width="160%" height="160%"><feDropShadow dx="0" dy="2" stdDeviation="2" flood-opacity=".6"/></filter>
+<pattern id="tCarbon" width="8" height="8" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><rect width="8" height="8" fill="#000" fill-opacity=".25"/><rect width="4" height="4" fill="#fff" fill-opacity=".06"/><rect x="4" y="4" width="4" height="4" fill="#fff" fill-opacity=".06"/></pattern>`;
+const THEMES = [
+  {key: 'turnaj', name: 'Turnaj', single: ['#141414', '#EADFC4'], double: ['#C62A35', '#16824A'], triple: ['#C62A35', '#16824A'], labels: {singleDark: '#EADFC4', singleLight: '#141414', double: '#FFFFFF', triple: '#FFFFFF'}, wire: {color: '#C0C6CE', width: 1.1, metal: 'silver'}, rim: '#0D0E11', bull: {outer: '#16824A', inner: '#C62A35', label: '#FFFFFF'}, glow: null, texture: 'sisal', shade: true, edge: null, highlight: '#FFD400', dots: {on: '#FFD400', off: '#3A3D46'}},
+  {key: 'neon', name: 'Neon', single: ['#0B0E17', '#121829'], double: ['rgba(255,46,151,.16)', 'rgba(0,229,255,.14)'], triple: ['rgba(255,46,151,.16)', 'rgba(0,229,255,.14)'], labels: {singleDark: '#7DF9FF', singleLight: '#7DF9FF', double: '#FF7AC0', triple: '#7DF9FF'}, wire: {color: '#1E2740', width: 1, metal: 'none'}, rim: '#05060B', bull: {outer: '#00E5FF', inner: '#FF2E97', label: '#FFFFFF'}, glow: {double: '#FF2E97', triple: '#00E5FF'}, texture: 'none', shade: false, edge: null, highlight: '#00E5FF', dots: {on: '#00E5FF', off: '#1E2740'}},
+  {key: 'zlato', name: 'Karbon & zlato', single: ['#17191D', '#2A2620'], double: ['#7A0F1C', '#0D5E3A'], triple: ['#7A0F1C', '#0D5E3A'], labels: {singleDark: '#E9C46A', singleLight: '#F3E3B5', double: '#FFF1C8', triple: '#FFF1C8'}, wire: {color: '#C9962B', width: 1.4, metal: 'gold'}, rim: '#0B0B0C', bull: {outer: '#0D5E3A', inner: '#7A0F1C', label: '#FFF1C8'}, glow: null, texture: 'carbon', shade: true, edge: '#C9962B', highlight: '#FFE08A', dots: {on: '#E9C46A', off: '#3A3326'}},
+  {key: 'tv', name: 'TV žlutá', single: ['#1A1C22', '#262A33'], double: ['#FFD400', '#F4F4F2'], triple: ['#FFD400', '#F4F4F2'], labels: {singleDark: '#F4F4F2', singleLight: '#F4F4F2', double: '#0A0B0F', triple: '#0A0B0F'}, wire: {color: '#07080B', width: 2.4, metal: 'none'}, rim: '#07080B', bull: {outer: '#F4F4F2', inner: '#FFD400', label: '#0A0B0F'}, glow: null, texture: 'none', shade: false, edge: null, highlight: '#FF4D4D', dots: {on: '#FFD400', off: '#2A2D35'}},
+  {key: 'led', name: 'Led', single: ['#0E2233', '#173A52'], double: ['#7FD4FF', '#E8F6FF'], triple: ['#7FD4FF', '#E8F6FF'], labels: {singleDark: '#CFEFFF', singleLight: '#CFEFFF', double: '#0E2233', triple: '#0E2233'}, wire: {color: 'rgba(255,255,255,.35)', width: 1, metal: 'none'}, rim: '#081521', bull: {outer: '#E8F6FF', inner: '#7FD4FF', label: '#0E2233'}, glow: null, texture: 'brushed', shade: true, edge: null, highlight: '#FFD400', dots: {on: '#7FD4FF', off: '#173A52'}}
+];
+const TCOL = /^(#[0-9a-f]{3,8}|rgba?\(\s*[\d.]+\s*,\s*[\d.]+\s*,\s*[\d.]+\s*(,\s*[\d.]+\s*)?\)|transparent)$/i;
+/* Vlastní motiv: projdou jen barvy a čísla, nic jiného se do terče nedostane. */
+function cleanTheme(t) {
+  const base = THEMES[0], err = [];
+  if (!t || typeof t !== 'object') return {t: base, err: ['není to motiv']};
+  const c = (v, d, k) => { if (v == null) return d; if (typeof v === 'string' && TCOL.test(v.trim())) return v.trim(); err.push(k); return d; };
+  const pair = (v, d, k) => Array.isArray(v) && v.length === 2 ? [c(v[0], d[0], k), c(v[1], d[1], k)] : (v == null ? d : (err.push(k), d));
+  const L = t.labels || {}, W = t.wire || {}, B = t.bull || {}, D = t.dots || {}, G = t.glow;
+  return {err, t: {key: 'custom', name: String(t.name || 'Vlastní').replace(/[<>&"]/g, '').slice(0, 24),
+    single: pair(t.single, base.single, 'single'), double: pair(t.double, base.double, 'double'), triple: pair(t.triple || t.double, base.triple, 'triple'),
+    labels: {singleDark: c(L.singleDark, base.labels.singleDark, 'labels'), singleLight: c(L.singleLight, base.labels.singleLight, 'labels'), double: c(L.double, '#FFFFFF', 'labels'), triple: c(L.triple, L.double && TCOL.test(L.double) ? L.double : '#FFFFFF', 'labels')},
+    wire: {color: c(W.color, '#C0C6CE', 'wire'), width: Math.min(4, Math.max(0, +W.width || 0)), metal: ['silver', 'gold'].includes(W.metal) ? W.metal : 'none'},
+    rim: c(t.rim, '#0D0E11', 'rim'), bull: {outer: c(B.outer, '#16824A', 'bull'), inner: c(B.inner, '#C62A35', 'bull'), label: c(B.label, '#FFFFFF', 'bull')},
+    glow: G && typeof G === 'object' ? {double: c(G.double, '#FF2E97', 'glow'), triple: c(G.triple, '#00E5FF', 'glow')} : null,
+    texture: ['sisal', 'carbon', 'brushed'].includes(t.texture) ? t.texture : 'none', shade: t.shade !== false, edge: t.edge ? c(t.edge, null, 'edge') : null,
+    highlight: c(t.highlight, '#FFD400', 'highlight'), dots: {on: c(D.on, '#FFD400', 'dots'), off: c(D.off, '#3A3D46', 'dots')}}};
+}
+function themeObj(v) { if (v && typeof v === 'object') return cleanTheme(v).t; return THEMES.find(x => x.key === v) || THEMES[0]; }
+const themeOf = pid => themeObj((pl(pid) || {}).theme);
 /* ---------- zadávání terčem ---------- */
 /* Zvenku double 1/5, triple 1/5, single 3/5; uprostřed tlačítko BULL, které se rozvětví na 25 / 50.
    Polož prst → políčko se rozsvítí a nad prstem je štítek; posuň → změní se; pusť → zapíše se. */
@@ -1153,39 +1223,57 @@ function bdArc(r0, r1, d0, d1) {
   return `M${P(r1, d0)}A${r1} ${r1} 0 0 1 ${P(r1, d1)}L${P(r0, d1)}A${r0} ${r0} 0 0 0 ${P(r0, d0)}Z`;
 }
 function bdXY(r, d) { const a = d * Math.PI / 180; return [(r * Math.cos(a)).toFixed(2), (r * Math.sin(a)).toFixed(2)]; }
-function boardSvg(g) {
+/* Vykreslí terč v daném motivu. o: {ids, labels, dim(n), co, bullDim, open} */
+function boardArt(t, o = {}) {
   const {RB, R, RIM, rS, rT} = BG;
+  let cells = '', carb = '', glow = '', labs = '', dimo = '';
+  BORD.forEach((n, i) => {
+    const mid = -90 + i * 18, ev = i % 2 === 0, dm = o.dim && o.dim(n);
+    [[RB, rS, 1], [rS, rT, 3], [rT, R, 2]].forEach(([r0, r1, m]) => {
+      const f = m === 1 ? t.single[ev ? 0 : 1] : m === 3 ? t.triple[ev ? 0 : 1] : t.double[ev ? 0 : 1], d = bdArc(r0, r1, mid - 9, mid + 9);
+      cells += `<path${o.ids ? ` id="b${n}_${m}" data-f="${f}"` : ''} d="${d}" fill="${f}"/>`;
+      if (t.texture === 'carbon' && m === 1 && ev) carb += `<path d="${d}" fill="url(#tCarbon)"/>`;
+      if (t.glow && m !== 1) glow += `<path d="${bdArc(r0 + 2, r1 - 2, mid - 7.5, mid + 7.5)}" fill="none" stroke="${m === 2 ? t.glow.double : t.glow.triple}" stroke-width="1.6"/>`;
+      if (dm) dimo += `<path d="${d}" fill="#000" opacity=".62"/>`;
+      if (o.labels) {
+        const lr = m === 1 ? r0 + .62 * (r1 - r0) : (r0 + r1) / 2, [x, y] = bdXY(lr, mid), tc = m === 1 ? (ev ? t.labels.singleDark : t.labels.singleLight) : m === 2 ? t.labels.double : t.labels.triple;
+        labs += `<text id="l${n}_${m}" x="${x}" y="${y}" fill="${tc}" data-f="${tc}"${dm ? ' opacity=".35"' : ''} font-size="${m === 1 ? 23 : m === 2 ? 15 : 14}"${m === 1 ? ' font-style="italic" font-weight="800"' : ''} text-anchor="middle" dominant-baseline="central">${m === 1 ? n : (m === 2 ? 'D' : 'T') + n}</text>`;
+      }
+    });
+  });
+  let s = `<defs>${TDEFS}<clipPath id="tClip"><circle r="${R}"/></clipPath></defs><circle r="${RIM}" fill="${t.rim}"/><g>${cells}${carb}</g>`;
+  if (t.texture === 'sisal' || t.texture === 'brushed') s += `<rect x="${-R}" y="${-R}" width="${2 * R}" height="${2 * R}" filter="url(#t${t.texture === 'sisal' ? 'Sisal' : 'Brushed'})" opacity="${t.texture === 'sisal' ? .22 : .5}" clip-path="url(#tClip)" pointer-events="none"/>`;
+  if (glow) s += `<g filter="url(#tGlow)">${glow}</g>`;
+  let w = '';
+  for (let i = 0; i < 20; i++) { const d = -90 + i * 18 - 9, [x0, y0] = bdXY(RB, d), [x1, y1] = bdXY(R, d); w += `<line x1="${x0}" y1="${y0}" x2="${x1}" y2="${y1}"/>`; }
+  [rS, rT, R].forEach(r => { w += `<circle r="${r}" fill="none"/>`; });
+  if (t.wire.width > 0) s += `<g stroke="${t.wire.metal === 'none' ? t.wire.color : 'url(#t' + (t.wire.metal === 'gold' ? 'Gold' : 'Silver') + ')'}" stroke-width="${t.wire.width}" pointer-events="none">${w}</g>`;
+  if (t.shade) s += `<circle r="${R}" fill="url(#tShade)" pointer-events="none"/>`;
+  if (t.edge) s += `<circle r="${R + 1}" fill="none" stroke="${t.edge}" stroke-width="2.5"/>`;
+  s += dimo + labs;
+  const co = o.co;
+  if (co && co.n !== 25) { const i = BORD.indexOf(co.n), mid = -90 + i * 18, rr = co.m === 1 ? [RB, rS] : co.m === 3 ? [rS, rT] : [rT, R]; s += `<path d="${bdArc(rr[0], rr[1], mid - 9, mid + 9)}" fill="none" stroke="${t.highlight}" stroke-width="3" stroke-dasharray="6 4" pointer-events="none"/>`; }
+  s += `<g filter="url(#tSoft)"${o.bullDim ? ' opacity=".35"' : ''}><circle${o.ids ? ' id="bbull" data-f="' + t.bull.outer + '"' : ''} r="${RB}" fill="${t.bull.outer}" stroke="${co && co.n === 25 ? t.highlight : 'none'}" stroke-width="3"/><circle r="${RB * .55}" fill="${t.bull.inner}"/>${o.labels ? `<text fill="${t.bull.label}" font-size="11" font-weight="800" text-anchor="middle" dominant-baseline="central">BULL</text>` : ''}</g>`;
+  if (o.open) {
+    s += `<circle r="${RIM}" fill="#07080B" opacity=".62"/>`;
+    BBR.forEach(b => {
+      const c = b.m === 1 ? t.bull.outer : t.bull.inner;
+      s += `<line x1="0" y1="0" x2="${b.x}" y2="${b.y}" stroke="${t.highlight}" stroke-width="3"/><circle id="bb${b.m}" cx="${b.x}" cy="${b.y}" r="${b.r}" fill="${c}" data-f="${c}" stroke="#FFFFFF" stroke-width="2"/><text x="${b.x}" y="${b.y - 8}" fill="${t.bull.label}" font-size="30" font-weight="800" text-anchor="middle" dominant-baseline="central">${b.m === 1 ? 25 : 50}</text><text x="${b.x}" y="${b.y + 18}" fill="${t.bull.label}" font-size="12" text-anchor="middle" dominant-baseline="central">${b.m === 1 ? 'BULL' : 'BULLSEYE'}</text>`;
+    });
+    s += `<circle r="${RB}" fill="${t.bull.inner}" stroke="${t.highlight}" stroke-width="4"/>`;
+  }
+  return s;
+}
+function boardSvg(g) {
+  const t = themeOf(curPlayer(g).id);
+  BD.hl = t.highlight;
   const dim = n => g.type === 'cricket' && (!CR.includes(n) || g.sides.every(s => s.marks[n] >= 3));
   let co = null;
   if (g.type === 'x01') { const s = g.sides[g.cur]; if (s.opened) { const c = checkout(s.rem, 3 - g.darts.length, g.settings.outMode); if (c && c[0] && c[0].n) co = c[0]; } }
-  const rings = [[RB, rS, 1], [rS, rT, 3], [rT, R, 2]];
-  let o = `<circle r="${RIM}" fill="#050505"/>`;
-  BORD.forEach((n, i) => {
-    const mid = -90 + i * 18, ev = i % 2 === 0;
-    let w = '';
-    rings.forEach(([r0, r1, m]) => {
-      const f = m === 1 ? (ev ? BCOL.blk : BCOL.crm) : (ev ? BCOL.red : BCOL.grn);
-      const tc = m === 1 ? (ev ? BCOL.crm : BCOL.blk) : '#FFFFFF';
-      const lr = m === 1 ? r0 + .62 * (r1 - r0) : (r0 + r1) / 2, [x, y] = bdXY(lr, mid);
-      w += `<path id="b${n}_${m}" d="${bdArc(r0, r1, mid - 9, mid + 9)}" fill="${f}" data-f="${f}" stroke="${BCOL.wire}" stroke-width=".8"/>`;
-      w += `<text id="l${n}_${m}" x="${x}" y="${y}" fill="${tc}" data-f="${tc}" font-size="${m === 1 ? 22 : m === 2 ? 15 : 14}" text-anchor="middle" dominant-baseline="central">${m === 1 ? n : (m === 2 ? 'D' : 'T') + n}</text>`;
-    });
-    o += dim(n) ? `<g opacity=".32">${w}</g>` : w;
-  });
-  o += `<circle r="${R}" fill="none" stroke="${BCOL.wire}" stroke-width="1.4"/>`;
-  if (co && co.n !== 25) { const i = BORD.indexOf(co.n), mid = -90 + i * 18, rr = co.m === 1 ? [RB, rS] : co.m === 3 ? [rS, rT] : [rT, R]; o += `<path d="${bdArc(rr[0], rr[1], mid - 9, mid + 9)}" fill="none" stroke="#FFD400" stroke-width="3" stroke-dasharray="6 4" pointer-events="none"/>`; }
   const bullDim = g.type === 'cricket' && g.sides.every(s => s.marks[25] >= 3);
-  o += `<g${bullDim ? ' opacity=".32"' : ''}><circle id="bbull" r="${RB}" fill="${BCOL.red}" data-f="${BCOL.red}" stroke="${co && co.n === 25 ? '#FFD400' : BCOL.grn}" stroke-width="4"/><text x="0" y="0" fill="#FFFFFF" font-size="12" text-anchor="middle" dominant-baseline="central">BULL</text></g>`;
-  if (BD.open) {
-    o += `<circle r="${RIM}" fill="#0A0B0F" opacity=".62"/>`;
-    BBR.forEach(b => {
-      const c = b.m === 1 ? BCOL.grn : BCOL.red;
-      o += `<line x1="0" y1="0" x2="${b.x}" y2="${b.y}" stroke="#FFD400" stroke-width="3"/><circle id="bb${b.m}" cx="${b.x}" cy="${b.y}" r="${b.r}" fill="${c}" data-f="${c}" stroke="#FFFFFF" stroke-width="2"/><text x="${b.x}" y="${b.y - 8}" fill="#FFFFFF" font-size="30" text-anchor="middle" dominant-baseline="central">${b.m === 1 ? 25 : 50}</text><text x="${b.x}" y="${b.y + 18}" fill="#FFFFFF" font-size="12" text-anchor="middle" dominant-baseline="central">${b.m === 1 ? 'BULL' : 'BULLSEYE'}</text>`;
-    });
-    o += `<circle r="${RB}" fill="${BCOL.red}" stroke="#FFD400" stroke-width="4"/><text x="0" y="0" fill="#FFFFFF" font-size="12" text-anchor="middle" dominant-baseline="central">BULL</text>`;
-  }
-  return `<svg viewBox="${-BG.VB / 2} ${-BG.VB / 2} ${BG.VB} ${BG.VB}" role="img" aria-label="Terč – polož prst na políčko a pusť">${o}</svg>`;
+  return `<svg viewBox="${-BG.VB / 2} ${-BG.VB / 2} ${BG.VB} ${BG.VB}" role="img" aria-label="Terč – polož prst na políčko a pusť">${boardArt(t, {ids: true, labels: true, dim, co, bullDim, open: BD.open})}</svg>`;
 }
+const boardMini = t => `<svg viewBox="${-BG.VB / 2} ${-BG.VB / 2} ${BG.VB} ${BG.VB}" aria-hidden="true">${boardArt(t, {labels: true})}</svg>`;
 function boardPad(g) {
   const n = V0.kind ? 3 : 2;
   return `<section class="bdp" aria-label="Zadání hodu – terč"><div class="bdw" id="bdw">${boardSvg(g)}<div class="bdtag" id="bdtag"></div></div>
@@ -1206,7 +1294,7 @@ function bdEls(h) {
   if (h.br) return [document.getElementById('bb' + h.m)];
   return [document.getElementById('b' + h.n + '_' + h.m), document.getElementById('l' + h.n + '_' + h.m)];
 }
-function bdPaint(h, on) { bdEls(h).forEach((el, i) => { if (el) el.setAttribute('fill', on ? (i ? '#0A0B0F' : '#FFD400') : el.getAttribute('data-f')); }); }
+function bdPaint(h, on) { bdEls(h).forEach((el, i) => { if (el) el.setAttribute('fill', on ? (i ? '#0A0B0F' : BD.hl || '#FFD400') : el.getAttribute('data-f')); }); }
 function bdSet(h, p) {
   if (bdKey(h) !== bdKey(BD.cur)) { bdPaint(BD.cur, false); bdPaint(h, true); BD.cur = h; }
   const t = document.getElementById('bdtag'), g = S.current;
@@ -1216,7 +1304,7 @@ function bdSet(h, p) {
   if (h.bull) { lbl = 'BULL'; sub = '25 / 50'; }
   else { lbl = dartLbl(h); const pv = preview(g, h.n, h.m); sub = pv.t; bad = pv.c === 'bad'; }
   t.innerHTML = `${esc(lbl)}<small>${esc(sub)}</small>`;
-  t.className = 'bdtag on' + (bad ? ' bad' : '');
+  t.className = 'bdtag on' + (bad ? ' bad' : ''); t.style.background = BD.hl || '';
   t.style.left = Math.max(54, Math.min(p.w - 54, p.px)) + 'px';
   t.style.top = (p.py - 46) + 'px';
 }
@@ -1264,7 +1352,7 @@ V.game = () => {
   else { title = 'COUNT UP'; sub = st.end === 'rounds' ? 'KOLO ' + Math.min(r, st.rounds) + ' / ' + st.rounds + (r > st.rounds ? ' · PRODLOUŽENÍ' : '') : 'KOLO ' + r + ' · ' + cuSub(st); }
   if (g.cloud && CL.on && (!CL.ready || !CL.net || CL.q.length)) sub += CL.ready && CL.net ? ' · ODESÍLÁM' : ' · BEZ PŘIPOJENÍ';
   return `<div class="app game"><header class="ghd gx"><button class="ib" data-a="go" data-v="home" aria-label="Zpět do menu">${IC.back}</button><div><h1>${title}</h1><span>${sub}</span></div><p class="ghr"><button class="ib" data-a="inp" aria-label="${S.inp === 'board' ? 'Zadávat čísly' : 'Zadávat terčem'}">${S.inp === 'board' ? IC.grid : IC.tgt}</button><button class="ib" data-a="gmenu" aria-label="Menu hry">${IC.menu}</button></p></header>
-  <div class="gmid">${g.type === 'cricket' ? cricketBoard(g) : scoreBoard(g)}${infoBar(g)}${roundStrip(g)}</div>${keypad(g)}${S.flash && S.flash.until > Date.now() ? `<div class="flash ${S.flash.kind}" role="status">${esc(S.flash.text)}</div>` : ''}</div>`;
+  <div class="gmid">${g.type === 'cricket' ? cricketBoard(g) : scoreBoard(g)}${infoBar(g)}</div>${roundStrip(g)}${keypad(g)}${S.flash && S.flash.until > Date.now() ? `<div class="flash ${S.flash.kind}" role="status">${esc(S.flash.text)}</div>` : ''}</div>`;
 };
 function placement(g) {
   const idx = g.sides.map((_, i) => i);
@@ -1284,10 +1372,24 @@ V.result = () => {
   <main class="col" style="flex:1">${placement(g).map(i => { const s = g.sides[i]; return `<div class="rrow"><i style="background:${s.color}"></i><div class="m"><b>${esc(s.name)}</b><span>${pline(s, i)}</span></div><strong>${finalVal(g, s)}</strong></div>`; }).join('')}</main>
   <div class="foot col g8"><button class="cta" data-a="rematch">ODVETA ${IC.arrow}</button><div class="row2"><button class="btn" data-a="go" data-v="home">MENU</button><button class="btn" data-a="stats" data-id="${w.players[0].id}">STATISTIKY</button></div></div></div>`;
 };
+function statsOverview(tab) {
+  const M = {
+    x01: {f: statsX01, key: 'avg', cols: [['AVG', x => fmt(x.avg), x => x.avg], ['Ø 10 HER', x => fmt(x.avg10), x => x.avg10], ['MAX KOLO', x => x.hiTurn || '–', x => x.hiTurn], ['ZAVŘENÍ', x => x.hiCo || '–', x => x.hiCo]], note: 'Žebříček podle průměru na 3 šipky'},
+    cricket: {f: statsCricket, key: 'mpr', cols: [['MPR', x => fmt(x.mpr, 2), x => x.mpr], ['MPR 10 HER', x => fmt(x.mpr10, 2), x => x.mpr10], ['MAX KOLO', x => x.hiMk, x => x.hiMk], ['VÝHRY', x => Math.round(x.wins / x.games * 100) + ' %', x => x.wins / x.games]], note: 'Žebříček podle zásahů na kolo (MPR)'},
+    countup: {f: statsCU, key: 'perRound', cols: [['Ø KOLO', x => fmt(x.perRound), x => x.perRound], ['Ø 10 HER', x => fmt(x.perRound10), x => x.perRound10], ['MAX KOLO', x => x.hiTurn, x => x.hiTurn], ['MAX HRA', x => x.hi, x => x.hi]], note: 'Žebříček podle průměru na kolo'}
+  }[tab];
+  const rows = S.players.map(p => ({p, x: M.f(p.id)})), played = rows.filter(r => r.x.games).sort((a, b) => (b.x[M.key] || 0) - (a.x[M.key] || 0)), idle = rows.filter(r => !r.x.games);
+  const best = M.cols.map(c => Math.max(...played.map(r => +c[2](r.x) || 0)));
+  const card = (r, i) => `<button class="stc" data-a="stats" data-id="${r.p.id}" style="--pc:${r.p.color}"><div class="stc-h"><span class="rk${i === 0 ? ' gold' : ''}">${i + 1}</span><b>${esc(r.p.name)}</b><small>${r.x.games} ${plural(r.x.games, 'ZÁPAS', 'ZÁPASY', 'ZÁPASŮ')} · ${r.x.wins} ${plural(r.x.wins, 'VÝHRA', 'VÝHRY', 'VÝHER')}</small>${IC.chev}</div><div class="stc-g">${M.cols.map((c, j) => `<div class="${played.length > 1 && best[j] > 0 && +c[2](r.x) === best[j] ? 'best' : ''}"><span>${c[0]}</span><b>${c[1](r.x)}</b></div>`).join('')}</div></button>`;
+  const body = played.length ? `<p class="note">${M.note} · ťukni na hráče pro podrobnosti</p>${played.map(card).join('')}` : `<div class="empty" style="padding:20px 0"><b>ZATÍM ŽÁDNÁ HRA</b><p class="note">Statistiky se ukážou po prvním odehraném zápase.</p></div>`;
+  const rest = idle.length ? `<p class="note" style="margin-top:14px">ZATÍM NEHRÁLI: ${idle.map(r => `<button class="lnk" data-a="stats" data-id="${r.p.id}">${esc(r.p.name)}</button>`).join(', ')}</p>` : '';
+  return `<div class="app"><header class="shdr"><h1>STATISTIKY</h1></header><main class="col" style="padding:4px 16px 24px;flex:1;gap:0">${seg('', 'tab', [['x01', 'X01'], ['cricket', 'CRICKET'], ['countup', 'COUNT UP']], tab, 'sm', 'stab')}<div style="height:10px"></div>${body}${rest}</main>${nav('stats')}</div>`;
+}
 V.stats = () => {
   if (!S.players.length) return `<div class="app"><header class="shdr"><h1>STATISTIKY</h1></header><div class="empty"><b>ZATÍM ŽÁDNÍ HRÁČI</b><p class="note">Statistiky se počítají z odehraných her každého profilu.</p><button class="btn acc" data-a="go" data-v="profiles">PŘIDAT HRÁČE</button></div><div style="flex:1"></div>${nav('stats')}</div>`;
-  const p = pl(S.stats.pid) || S.players[0]; S.stats.pid = p.id;
   const tab = S.stats.tab;
+  if (!pl(S.stats.pid)) return statsOverview(tab);
+  const p = pl(S.stats.pid);
   let body = '';
   const empty = t => `<div class="empty" style="padding:20px 0"><b>ZATÍM ŽÁDNÁ HRA</b><p class="note">${esc(p.name)} ještě nehrál ${t}.</p></div>`;
   if (tab === 'x01') {
@@ -1297,20 +1399,20 @@ V.stats = () => {
       const mx = Math.max(...x.per), mn = Math.min(...x.per);
       const bars = x.per.map(v => `<i style="height:${Math.round(15 + 85 * (mx > mn ? (v - mn) / (mx - mn) : 1))}%"></i>`).join('');
       body = `<section class="shero"><div class="col"><span class="lbl">Ø NA 3 ŠIPKY</span><span class="big">${fmt(x.avg)}</span></div><div class="col g8"><div class="bars" role="img" aria-label="Průměr v posledních zápasech od ${fmt(mn)} do ${fmt(mx)}">${bars}</div><span class="lbl" style="font-size:11px;letter-spacing:1.5px;text-align:right">POSLEDNÍCH ${x.per.length} ${plural(x.per.length, 'ZÁPAS', 'ZÁPASY', 'ZÁPASŮ')}</span></div></section>` +
-        list([['Zápasy / výhry', x.games + ' / ' + x.wins], ['Ø prvních 9 šipek', fmt(x.f9)], ['Úspěšnost zavření', x.coA ? Math.round(x.coS / x.coA * 100) + ' % (' + x.coS + '/' + x.coA + ')' : '–'], ['Nejvyšší zavření', x.hiCo || '–'], ['100–139', x.b100], ['140–179', x.b140], ['180', x.b180], ['Nejméně šipek na výhru', Number.isFinite(x.minD) ? x.minD : '–']]);
+        list([['Zápasy / výhry', x.games + ' / ' + x.wins], ['Ø posledních 10 zápasů', fmt(x.avg10)], ['Nejvyšší kolo', x.hiTurn || '–'], ['Ø prvních 9 šipek', fmt(x.f9)], ['Úspěšnost zavření', x.coA ? Math.round(x.coS / x.coA * 100) + ' % (' + x.coS + '/' + x.coA + ')' : '–'], ['Nejvyšší zavření', x.hiCo || '–'], ['100–139', x.b100], ['140–179', x.b140], ['180', x.b180], ['Nejméně šipek na výhru', Number.isFinite(x.minD) ? x.minD : '–']]);
     }
   } else if (tab === 'cricket') {
     const c = statsCricket(p.id);
-    body = !c.games ? empty('Cricket') : `<section class="col"><span class="lbl">MPR · ZÁSAHY NA KOLO</span><span class="big">${fmt(c.mpr, 2)}</span></section>` + list([['Zápasy / výhry', c.games + ' / ' + c.wins], ['Úspěšnost výher', Math.round(c.wins / c.games * 100) + ' %'], ['Nejlepší MPR v zápase', fmt(c.best, 2)], ['Zásahů celkem', c.mk]]);
+    body = !c.games ? empty('Cricket') : `<section class="col"><span class="lbl">MPR · ZÁSAHY NA KOLO</span><span class="big">${fmt(c.mpr, 2)}</span></section>` + list([['Zápasy / výhry', c.games + ' / ' + c.wins], ['Úspěšnost výher', Math.round(c.wins / c.games * 100) + ' %'], ['MPR posledních 10 zápasů', fmt(c.mpr10, 2)], ['Nejvíc zásahů v kole', c.hiMk], ['Nejlepší MPR v zápase', fmt(c.best, 2)], ['Zásahů celkem', c.mk]]);
   } else {
     const c = statsCU(p.id);
-    body = !c.games ? empty('Count Up') : `<section class="col"><span class="lbl">NEJVYŠŠÍ SKÓRE</span><span class="big">${c.hi}</span></section>` + list([['Zápasy / výhry', c.games + ' / ' + c.wins], ['Ø skóre na hru', fmt(c.perGame)], ['Ø na kolo (3 šipky)', fmt(c.perRound)]]);
+    body = !c.games ? empty('Count Up') : `<section class="col"><span class="lbl">NEJVYŠŠÍ SKÓRE</span><span class="big">${c.hi}</span></section>` + list([['Zápasy / výhry', c.games + ' / ' + c.wins], ['Ø skóre na hru', fmt(c.perGame)], ['Ø na kolo (3 šipky)', fmt(c.perRound)], ['Ø na kolo, posledních 10', fmt(c.perRound10)], ['Nejvyšší kolo', c.hiTurn]]);
   }
   const hh = h2h(p.id);
   if (hh.length) body += `<section class="col g8"><h2 class="lbl">VZÁJEMNÉ ZÁPASY</h2><div class="hh">${hh.slice(0, 6).map(r => `<div><span>VS ${esc(r.name)}</span><b>${r.w}:${r.l}</b></div>`).join('')}</div></section>`;
   const rec = S.matches.filter(m => sideOf(m, p.id) >= 0).slice(-8).reverse();
   if (rec.length) body += `<section class="col g8"><h2 class="lbl">POSLEDNÍ ZÁPASY</h2>${list(rec.map(m => { const si = sideOf(m, p.id), opp = m.sides.filter((_, j) => j !== si).map(s => esc(s.name)).join(', '); const res = m.sides.length < 2 ? `<b class="l">TRÉNINK</b>` : m.winner === si ? '<b class="w">VÝHRA</b>' : '<b class="l">PROHRA</b>'; return [dstr(m.date) + ' · ' + typeTitle(m) + (opp ? ' · vs ' + opp : ''), res]; })).replace(/<b><b/g, '<b').replace(/<\/b><\/b>/g, '</b>')}</section>`;
-  return `<div class="app"><header class="shdr"><h1>STATISTIKY</h1><button class="psel" data-a="spickOpen" aria-label="Vybrat hráče"><i style="background:${p.color}"></i><span>${esc(p.name)}</span>${IC.down}</button></header>
+  return `<div class="app"><header class="shdr"><button class="ib" data-a="sback" aria-label="Zpět na přehled hráčů" style="margin-left:-12px">${IC.back}</button><h1 style="flex:1">STATISTIKY</h1><button class="psel" data-a="spickOpen" aria-label="Vybrat hráče"><i style="background:${p.color}"></i><span>${esc(p.name)}</span>${IC.down}</button></header>
   <main class="col g14" style="padding:4px 20px 24px;flex:1">${seg('', 'tab', [['x01', 'X01'], ['cricket', 'CRICKET'], ['countup', 'COUNT UP']], tab, 'sm', 'stab')}${body}</main>${nav('stats')}</div>`;
 };
 V.profiles = () => {
@@ -1357,7 +1459,7 @@ function sheetBody(sh) {
     case 'edit': {
       const p = pl(sh.id);
       if (!p) return '';
-      return `<h2 class="sh2">UPRAVIT HRÁČE</h2><form class="col g8" data-f="edit"><label class="lbl" for="np">JMÉNO</label><input class="inp" id="np" name="name" maxlength="20" autocomplete="off" required value="${esc(sh.name)}"><span class="lbl">BARVA</span><div class="sw">${PALETTE.map(c => `<button type="button" data-a="pcolor" data-c="${c}" aria-label="Barva ${c}" aria-pressed="${c === sh.c}" style="background:${c}"></button>`).join('')}</div><div class="row2"><button type="button" class="btn" data-a="closeSheet">ZRUŠIT</button><button type="submit" class="btn acc">ULOŽIT</button></div><button type="button" class="ghost" style="color:#FF7A7A" data-a="askDelP" data-id="${p.id}">SMAZAT HRÁČE</button></form>`;
+      return `<h2 class="sh2">UPRAVIT HRÁČE</h2><form class="col g8" data-f="edit"><label class="lbl" for="np">JMÉNO</label><input class="inp" id="np" name="name" maxlength="20" autocomplete="off" required value="${esc(sh.name)}"><span class="lbl">BARVA</span><div class="sw">${PALETTE.map(c => `<button type="button" data-a="pcolor" data-c="${c}" aria-label="Barva ${c}" aria-pressed="${c === sh.c}" style="background:${c}"></button>`).join('')}</div><span class="lbl">MOTIV TERČE</span><div class="thp">${boardMini(themeObj(sh.th))}</div><div class="ths">${THEMES.map(t => `<button type="button" data-a="pth" data-k="${t.key}" aria-pressed="${sh.th === t.key}"><i style="background:${t.double[0]}"></i><i style="background:${t.single[1]}"></i><i style="background:${t.double[1]}"></i><span>${esc(t.name)}</span></button>`).join('')}<button type="button" data-a="pthOpen" aria-pressed="${!!sh.th && typeof sh.th === 'object'}"><span>+ ${sh.th && typeof sh.th === 'object' ? esc(sh.th.name) : 'VLASTNÍ'}</span></button></div>${sh.cust ? `<textarea class="ta" id="pthj" placeholder="Vlož motiv od jiné AI podle šablony (celou odpověď)…" aria-label="Vlastní motiv">${esc(sh.cj || '')}</textarea>${sh.terr ? `<p class="note" role="alert" style="color:#FF7A7A;font-size:14px">${esc(sh.terr)}</p>` : ''}<button type="button" class="btn" data-a="pthApply">POUŽÍT VLASTNÍ MOTIV</button>` : ''}<div class="row2"><button type="button" class="btn" data-a="closeSheet">ZRUŠIT</button><button type="submit" class="btn acc">ULOŽIT</button></div><button type="button" class="ghost" style="color:#FF7A7A" data-a="askDelP" data-id="${p.id}">SMAZAT HRÁČE</button></form>`;
     }
     case 'pick': {
       const used = new Set(assigned(S.draft)), av = S.players.filter(p => !used.has(p.id));
@@ -1390,6 +1492,7 @@ const A = {
     S.sheet = null; BD.open = false;
     if (ds.v === 'game' && !S.current) return;
     S.view = ds.v;
+    if (ds.v === 'stats') S.stats.pid = null;
     if (ds.v === 'game') wake(); else { releaseWake(); srShutdown(); }
     window.scrollTo(0, 0);
   },
@@ -1464,10 +1567,23 @@ const A = {
   },
   stats(ds) { S.stats.pid = ds.id; S.view = 'stats'; S.sheet = null; window.scrollTo(0, 0); },
   stab(ds) { S.stats.tab = ds.v; },
+  sback() { S.stats.pid = null; window.scrollTo(0, 0); },
   spickOpen() { S.sheet = {k: 'spick'}; },
   spick(ds) { S.stats.pid = ds.id; S.sheet = null; },
   newpOpen(ds) { S.sheet = {k: 'newp', ctx: ds.ctx, focus: true}; },
-  editp(ds) { const p = pl(ds.id); if (p) S.sheet = {k: 'edit', id: p.id, name: p.name, c: p.color, focus: true}; },
+  editp(ds) { const p = pl(ds.id); if (p) S.sheet = {k: 'edit', id: p.id, name: p.name, c: p.color, th: p.theme || 'turnaj', focus: true}; },
+  pth(ds) { const i = document.getElementById('np'); if (i) S.sheet.name = i.value; S.sheet.th = ds.k; S.sheet.cust = false; },
+  pthOpen() { const i = document.getElementById('np'); if (i) S.sheet.name = i.value; S.sheet.cust = !S.sheet.cust; if (S.sheet.th && typeof S.sheet.th === 'object' && !S.sheet.cj) S.sheet.cj = JSON.stringify(S.sheet.th, null, 1); },
+  pthApply() {
+    const i = document.getElementById('np'), ta = document.getElementById('pthj'), sh = S.sheet;
+    if (i) sh.name = i.value;
+    const raw = ta ? ta.value : ''; sh.cj = raw;
+    const a = raw.indexOf('{'), b = raw.lastIndexOf('}');
+    let j = null; try { j = JSON.parse(raw.slice(a, b + 1)); } catch (e) {}
+    if (!j || a < 0) { sh.terr = 'Text neobsahuje platný motiv – zkopíruj celou odpověď AI s blokem { … }.'; return; }
+    const r = cleanTheme(j); sh.th = r.t; sh.cust = !!r.err.length;
+    sh.terr = r.err.length ? 'Motiv použit, ale tyhle položky nebyly platné barvy a nahradily se výchozími: ' + [...new Set(r.err)].join(', ') + '.' : '';
+  },
   pcolor(ds) { const i = document.getElementById('np'); if (i) S.sheet.name = i.value; S.sheet.c = ds.c; },
   askDelP(ds) { const p = pl(ds.id); S.sheet = {k: 'confirm', title: 'SMAZAT ' + esc(p.name.toUpperCase()) + '?', text: 'Profil zmizí ze seznamu. Odehrané zápasy zůstanou v historii ostatních hráčů.', ok: 'delP', id: ds.id, okl: 'SMAZAT'}; },
   delP(ds) {
@@ -1499,7 +1615,7 @@ const F = {
     const p = pl(S.sheet.id), name = form.elements.name.value.trim().slice(0, 20);
     if (!p || !name) return;
     if (S.players.some(x => x !== p && x.name.toLowerCase() === name.toLowerCase())) { toast('Hráč ' + name + ' už existuje'); return; }
-    p.name = name; p.color = S.sheet.c; persistPlayers(); S.sheet = null;
+    p.name = name; p.color = S.sheet.c; if (S.sheet.th) p.theme = S.sheet.th; persistPlayers(); S.sheet = null;
   }
 };
 document.addEventListener('click', e => {
@@ -1618,11 +1734,11 @@ function clDisconnect() {
 }
 /* --- čtení ze serveru --- */
 async function clLoadPlayers() {
-  const {data, error} = await CL.sb.from('players').select('id,name,color').eq('office_id', CL.office).eq('archived', false).order('id');
+  const {data, error} = await CL.sb.from('players').select('id,name,color,theme').eq('office_id', CL.office).eq('archived', false).order('id');
   if (error) throw error;
   if (CL.q.some(o => o.k === 'p')) return;
-  S.players = data.map(p => ({id: p.id, name: p.name, color: p.color || PALETTE[0]}));
-  CL.pmap = Object.fromEntries(S.players.map(p => [p.id, p.name + '|' + p.color]));
+  S.players = data.map(p => Object.assign({id: p.id, name: p.name, color: p.color || PALETTE[0]}, p.theme ? {theme: p.theme} : {}));
+  CL.pmap = Object.fromEntries(S.players.map(p => [p.id, clSig(p)]));
   LS.set('.c_p', S.players);
 }
 async function clLoadMatches() {
@@ -1701,6 +1817,7 @@ function clPush(op) { CL.q.push(op); clSaveQ(); clStatus(); clFlush(); }
 async function clFlush() {
   if (CL.busy || !CL.on || !CL.ready || CL.conflict) return;
   CL.busy = true;
+  const wasNet = CL.net;
   let touched = new Set(), offApp = 0;
   try {
     while (CL.q.length && !CL.conflict) {
@@ -1712,7 +1829,7 @@ async function clFlush() {
       if (op.gid) touched.add(op.gid);
       if (r === 'refresh' && op.gid) touched.add(op.gid);
     }
-  } finally { CL.busy = false; clStatus(); }
+  } finally { CL.busy = false; clStatus(); if (wasNet !== CL.net) render(); }
   if (offApp) toast('Hody z doby bez internetu doodeslány – za hody z jiného telefonu');
   if (!CL.q.length) { [...touched, ...CL.need].forEach(id => { if (S.current && S.current.id === id) clRefreshGame(id); }); CL.need.clear(); clLoadPlayers().then(render, () => {}); }
   if (CL.conflict) { S.sheet = {k: 'clConf'}; render(); }
@@ -1775,16 +1892,17 @@ function clMatchDone(m) {
   clPush({k: 'd', gid: m.id, row});
 }
 function clVoid(g) { CL.live = CL.live.filter(x => x.id !== g.id); CL.gid = null; clSaveState(); clPush({k: 'v', gid: g.id}); }
+const clSig = p => JSON.stringify([p.name, p.color, p.theme || null]);
 function clPlayersSync() {
   const prev = CL.pmap || {}, now = {}, rows = [];
-  S.players.forEach(p => { now[p.id] = p.name + '|' + p.color; if (prev[p.id] !== now[p.id]) rows.push({id: p.id, name: p.name, color: p.color, archived: false}); });
-  Object.keys(prev).forEach(id => { if (!now[id]) { const [name, color] = prev[id].split('|'); rows.push({id, name, color, archived: true}); } });
+  S.players.forEach(p => { now[p.id] = clSig(p); if (prev[p.id] !== now[p.id]) rows.push({id: p.id, name: p.name, color: p.color, theme: p.theme || null, archived: false}); });
+  Object.keys(prev).forEach(id => { if (!now[id]) { const [name, color] = JSON.parse(prev[id]); rows.push({id, name, color, archived: true}); } });
   CL.pmap = now;
   if (rows.length) clPush({k: 'p', rows});
 }
 function clUpload() {
   const lp = LS.get('.p') || [], lm = LS.get('.m') || [], byName = new Map(S.players.map(p => [p.name.toLowerCase(), p.id])), map = {};
-  lp.forEach(p => { const ex = byName.get(p.name.toLowerCase()); if (ex) map[p.id] = ex; else { map[p.id] = p.id; S.players.push({id: p.id, name: p.name, color: p.color}); byName.set(p.name.toLowerCase(), p.id); } });
+  lp.forEach(p => { const ex = byName.get(p.name.toLowerCase()); if (ex) map[p.id] = ex; else { map[p.id] = p.id; S.players.push(Object.assign({id: p.id, name: p.name, color: p.color}, p.theme ? {theme: p.theme} : {})); byName.set(p.name.toLowerCase(), p.id); } });
   persistPlayers();
   const fix = id => map[id] || id;
   let n = 0;
@@ -1818,7 +1936,7 @@ document.addEventListener('visibilitychange', () => { if (CL.on && document.visi
 (function clInit() {
   let d = LS.get('.c_dev'); if (!d) { d = uid(); LS.set('.c_dev', d); } CL.dev = d;
   const st = LS.get('.cl');
-  if (st && st.office && clAvail()) { Object.assign(CL, {on: true, code: st.code, office: st.office, who: st.who, gid: st.gid || null}); CL.q = LS.get('.c_q') || []; CL.live = LS.get('.c_live') || []; CL.pmap = Object.fromEntries((LS.get('.c_p') || []).map(p => [p.id, p.name + '|' + p.color])); }
+  if (st && st.office && clAvail()) { Object.assign(CL, {on: true, code: st.code, office: st.office, who: st.who, gid: st.gid || null}); CL.q = LS.get('.c_q') || []; CL.live = LS.get('.c_live') || []; CL.pmap = Object.fromEntries((LS.get('.c_p') || []).map(p => [p.id, clSig(p)])); }
 })();
 loadLocal();
 if (FILE) S.sync = 'file';

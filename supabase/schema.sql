@@ -28,6 +28,7 @@ create table if not exists public.players (
   updated_at timestamptz not null default now()
 );
 create index if not exists players_office on public.players(office_id);
+alter table public.players add column if not exists theme jsonb;   -- motiv terče hráče
 
 create table if not exists public.games (
   id         text primary key,
