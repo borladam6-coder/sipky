@@ -114,6 +114,7 @@ button:disabled{cursor:default}
 .sb.on strong{font-size:84px;letter-spacing:-2px}
 .sb.cp{height:46px}.sb.cp strong{font-size:32px}.sb.cp .m span{display:none}.sb.cp .m b{font-size:20px}
 .sb.on.cp{height:80px}.sb.on.cp strong{font-size:64px}.sb.on.cp .m span{display:block}
+.sb.done{opacity:.55}.sbo .done{opacity:.55}.sbo .done span{color:var(--acc)}
 .sb.on.bm{height:70px}.sb.on.bm strong{font-size:60px}
 .sbo{display:flex;gap:2px;overflow-x:auto;scrollbar-width:none}.sbo::-webkit-scrollbar{display:none}
 .sbo div{flex:1 0 30%;background:var(--s2);border-left:4px solid var(--c);height:38px;display:flex;align-items:center;justify-content:space-between;gap:8px;padding:0 10px;min-width:0}
@@ -235,6 +236,7 @@ button:disabled{cursor:default}
 .stc-g b{display:block;font:italic 800 24px/1.1 var(--cd);white-space:nowrap}
 .stc-g .best b{color:var(--acc)}
 .lnk{color:var(--ink);text-decoration:underline;font:inherit}
+.lrow .xm{display:inline-flex;width:34px;height:34px;vertical-align:middle;margin-left:6px;color:var(--mut)}
 .lrow{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;min-height:42px;border-top:1px solid var(--ln);gap:12px;padding:4px 0}
 .lrow span{color:#D5D7DC}
 .lrow b{font:italic 800 24px var(--cd);white-space:nowrap}
@@ -293,7 +295,7 @@ button:disabled{cursor:default}
 'use strict';
 const $app = document.getElementById('app'), $sheet = document.getElementById('sheet'), $toast = document.getElementById('toast');
 const KEY = 'sipky.v1';
-const APP_VERSION = '1.7';
+const APP_VERSION = '1.8';
 const PALETTE = ['#FF6B3D','#2EC5F0','#B28CFF','#19C37D','#FF8FB1','#FFB547','#7CC4FF','#D9DCE1'];
 const TEAMC = ['#FF6B3D','#2EC5F0','#B28CFF','#19C37D'], TEAMN = ['A','B','C','D'];
 const CR = [20,19,18,17,16,15,25];
@@ -450,11 +452,26 @@ function newGame(type, settings, sides) {
 }
 function beginTurn(g) { const s = g.sides[g.cur]; g.darts = []; g.tStartRem = s.rem; g.tStartOpened = s.opened; g.tPts = 0; g.tMarks = 0; }
 function curPlayer(g, si = g.cur) { const s = g.sides[si]; return s.players[s.pIdx % s.players.length]; }
-const roundNo = g => Math.floor(g.turns.length / g.sides.length) + 1;
+const roundNo = g => g.rnd || Math.floor(g.turns.length / g.sides.length) + 1;
+const placeKey = (g, i) => { const s = g.sides[i]; if (g.type === 'x01') return s.rem; if (g.type === 'countup') return -s.score; if (g.settings.cricketMode === 'cutthroat') return s.points; if (g.settings.cricketMode === 'noscore') return -CR.filter(t => s.marks[t] >= 3).length; return -s.points; };
+/* Někdo dohrál: bez dohrávání hra končí, s dohráváním se hraje dál o další místa, dokud nezbude jeden. */
+function sideDone(g, s, info) {
+  const i = g.sides.indexOf(s);
+  g.places = g.places || [];
+  s.done = true; g.places.push(i);
+  if (g.places.length === 1) g.info1 = info;
+  endTurn(g, {co: true});
+  if (!g.settings.playOn || g.sides.filter(x => !x.done).length <= 1) { rankRest(g); finish(g, g.places[0], g.info1); }
+  else setFlash(s.name.toUpperCase() + ' DOHRÁL · ' + g.places.length + '. MÍSTO', 'hot', 2800);
+}
+function rankRest(g) {
+  g.places = g.places || [];
+  g.sides.map((_, i) => i).filter(i => !g.places.includes(i)).sort((a, b) => placeKey(g, a) - placeKey(g, b)).forEach(i => g.places.push(i));
+}
 function snapshot(g) { g.history.push(JSON.stringify(stripHist(g))); if (g.history.length > 60) g.history.shift(); }
 function cricketWon(g, s) {
   if (!CR.every(t => s.marks[t] >= 3)) return false;
-  const others = g.sides.filter(o => o !== s), mode = g.settings.cricketMode;
+  const others = g.sides.filter(o => o !== s && !o.done), mode = g.settings.cricketMode;
   if (mode === 'standard') return others.every(o => s.points >= o.points);
   if (mode === 'cutthroat') return others.every(o => s.points <= o.points);
   return true;
@@ -476,10 +493,10 @@ function throwDart(n, m) {
     else if (nr === 1 && st.outMode !== 'single') bust = true;
     g.darts.push({n, m, c});
     if (bust) { s.rem = g.tStartRem; s.opened = g.tStartOpened; const nm = s.name; endTurn(g, {bust: true}); setFlash('BUST · ' + nm + ' zůstává na ' + s.rem, 'bust', 2600); }
-    else { s.rem = nr; g.tPts += c; if (win) { endTurn(g, {co: true}); finish(g, g.sides.indexOf(s), 'ZAVŘENO ' + dartLbl({n, m})); } else if (g.darts.length === 3) endTurn(g); }
+    else { s.rem = nr; g.tPts += c; if (win) sideDone(g, s, 'ZAVŘENO ' + dartLbl({n, m})); else if (g.darts.length === 3) endTurn(g); }
   } else if (g.type === 'countup') {
     s.score += v; g.tPts += v; g.darts.push({n, m, c: v});
-    if (st.end === 'target' && s.score >= st.target) { endTurn(g, {co: true}); finish(g, g.sides.indexOf(s), 'CÍL ' + st.target + ' · ' + s.score + ' BODŮ'); }
+    if (st.end === 'target' && s.score >= st.target) sideDone(g, s, 'CÍL ' + st.target + ' · ' + s.score + ' BODŮ');
     else if (g.darts.length === 3) { endTurn(g); cuRoundsEnd(g); }
   } else {
     let mk = 0, gained = 0;
@@ -492,7 +509,7 @@ function throwDart(n, m) {
       }
     }
     g.darts.push({n, m, c: mk}); g.tMarks += mk; g.tPts += gained;
-    if (cricketWon(g, s)) { endTurn(g, {co: true}); finish(g, g.sides.indexOf(s), 'VŠE ZAVŘENO'); }
+    if (cricketWon(g, s)) sideDone(g, s, 'VŠE ZAVŘENO');
     else if (g.darts.length === 3) endTurn(g);
   }
   persistCurrent(); buzz();
@@ -515,13 +532,16 @@ function endTurn(g, o = {}) {
     else setFlash(nm + ' · ' + g.tPts + ' ' + plural(g.tPts, 'BOD', 'BODY', 'BODŮ'), g.tPts >= 100 ? 'hot' : 'info');
   }
   s.pIdx++;
-  g.cur = (g.cur + 1) % g.sides.length;
+  const prev = g.cur, n = g.sides.length;
+  if (g.sides.some(x => !x.done)) do { g.cur = (g.cur + 1) % n; } while (g.sides[g.cur].done);
+  else g.cur = (g.cur + 1) % n;
+  if (g.cur <= prev) g.rnd = (g.rnd || Math.floor((g.turns.length - 1) / n) + 1) + 1;
   beginTurn(g);
 }
 function finish(g, wi, info) {
   g.finished = true; g.winner = wi; g.info = info;
   if (REPLAY) return;
-  const m = {id: g.id, type: g.type, settings: g.settings, date: Date.now(), startedAt: g.startedAt, winner: wi, info, turns: g.turns,
+  const m = {id: g.id, type: g.type, settings: g.settings, date: Date.now(), startedAt: g.startedAt, winner: wi, info, places: g.places && g.places.length ? g.places.slice() : undefined, turns: g.turns,
     sides: g.sides.map(s => ({name: s.name, color: s.color, team: s.team, players: s.players, fin: finalVal(g, s)}))};
   S.matches.push(m); persistMatch(m);
   S.result = stripHist(g); S.current = null; persistCurrent();
@@ -638,7 +658,7 @@ document.addEventListener('visibilitychange', () => { if (document.visibilitySta
 /* ---------- koncept hry ---------- */
 function newDraft(type) {
   const l = S.meta.lastDraft || {};
-  return {type, start: l.start || 501, inMode: l.inMode || 'straight', outMode: l.outMode || 'double', cricketMode: l.cricketMode || 'standard', cuEnd: l.cuEnd || 'none', cuRounds: l.cuRounds || 10, cuTarget: l.cuTarget || 500,
+  return {type, start: l.start || 501, inMode: l.inMode || 'straight', outMode: l.outMode || 'double', cricketMode: l.cricketMode || 'standard', cuEnd: l.cuEnd || 'none', playOn: l.playOn === false ? false : true, cuRounds: l.cuRounds || 10, cuTarget: l.cuTarget || 500,
     teams: !!l.teams, teamSize: l.teamSize || 2, order: (l.order || []).filter(pl),
     teamList: (l.teamList && l.teamList.length >= 2 ? l.teamList : [{ids: []}, {ids: []}]).map(t => ({ids: (t.ids || []).filter(pl)}))};
 }
@@ -773,7 +793,7 @@ function vOpen() {
   V0.open = true; V0.heard = ''; V0.partial = ''; V0.err = ''; V0.typed = '';
   $vp.innerHTML = `<div class="sheet-bg" data-vclose></div><section class="sheet" role="dialog" aria-label="Zadání hlasem"><div id="vbody" class="col g14"></div>
     <button type="button" id="vptt" class="ptt" data-ptt><i class="dot off"></i><span>DRŽ A MLUV</span></button>
-    <form id="vform" class="col g8" autocomplete="off"><label class="lbl" for="vtype">NEBO NAPIŠ / NADIKTUJ KLÁVESNICÍ</label><input class="inp" id="vtype" enterkeyhint="done" placeholder="např. t20 20 d5 · mimo · bull" autocapitalize="off" autocorrect="off" spellcheck="false"></form>
+    <form id="vform" class="col g8" autocomplete="off"><label class="lbl" for="vtype">NEBO NAPIŠ / NADIKTUJ KLÁVESNICÍ</label><input class="inp" id="vtype" enterkeyhint="done" autocapitalize="off" autocorrect="off" spellcheck="false"></form>
     <div class="row2"><button type="button" class="btn" data-vclose>ZAVŘÍT</button><button type="button" class="btn acc" id="vok" disabled>ZAPSAT</button></div>
     <p class="note" id="vdiag" style="font-size:11px;opacity:.6"></p></section>`;
   $vp.hidden = false;
@@ -1090,22 +1110,22 @@ V.home = () => {
 V.setup = () => {
   const d = S.draft;
   let body = seg('HRA', 'type', [['x01', 'X01'], ['cricket', 'CRICKET'], ['countup', 'COUNT UP']], d.type);
-  if (d.type === 'x01') body += seg('POČÁTEČNÍ SKÓRE', 'start', [[301, '301'], [501, '501'], [701, '701']], d.start, 'big') + seg('ZAČÁTEK', 'inMode', [['straight', 'STRAIGHT IN'], ['double', 'DOUBLE IN']], d.inMode) + seg('KONEC', 'outMode', [['single', 'SINGLE'], ['double', 'DOUBLE'], ['master', 'MASTER']], d.outMode) + `<p class="note">${OUTNOTE[d.outMode]}</p>`;
-  if (d.type === 'cricket') body += seg('VARIANTA', 'cricketMode', [['standard', 'STANDARD'], ['cutthroat', 'CUT-THROAT'], ['noscore', 'NO SCORE']], d.cricketMode) + `<p class="note">${CMNOTE[d.cricketMode]}</p>`;
+  if (d.type === 'x01') body += seg('POČÁTEČNÍ SKÓRE', 'start', [[301, '301'], [501, '501'], [701, '701']], d.start, 'big') + seg('ZAČÁTEK', 'inMode', [['straight', 'STRAIGHT IN'], ['double', 'DOUBLE IN']], d.inMode) + seg('KONEC', 'outMode', [['single', 'SINGLE'], ['double', 'DOUBLE'], ['master', 'MASTER']], d.outMode);
+  if (d.type === 'cricket') body += seg('VARIANTA', 'cricketMode', [['standard', 'STANDARD'], ['cutthroat', 'CUT-THROAT'], ['noscore', 'NO SCORE']], d.cricketMode);
   if (d.type === 'countup') {
-    const num = (k, v, min, max, ph) => `<input class="inp" type="number" inputmode="numeric" min="${min}" max="${max}" data-k="${k}" value="${v}" placeholder="${ph}" aria-label="${ph}">`;
+    const num = (k, v, min, max, ph) => `<input class="inp" type="number" inputmode="numeric" min="${min}" max="${max}" data-k="${k}" value="${v}" aria-label="${ph}">`;
     body += seg('KONEC HRY', 'cuEnd', [['none', 'BEZ LIMITU'], ['rounds', 'POČET KOL'], ['target', 'CÍL']], d.cuEnd);
     if (d.cuEnd === 'rounds') body += seg('POČET KOL', 'cuRounds', [[5, '5'], [10, '10'], [15, '15'], [20, '20']], d.cuRounds, 'big') + `<section class="col g8"><h2 class="lbl">NEBO VLASTNÍ (1–99)</h2>${num('cuRounds', d.cuRounds, 1, 99, 'Počet kol')}</section>`;
     if (d.cuEnd === 'target') body += seg('CÍLOVÉ SKÓRE', 'cuTarget', [[300, '300'], [500, '500'], [1000, '1000']], d.cuTarget, 'big') + `<section class="col g8"><h2 class="lbl">NEBO VLASTNÍ (10–9999)</h2>${num('cuTarget', d.cuTarget, 10, 9999, 'Cílové skóre')}</section>`;
-    body += `<p class="note">${d.cuEnd === 'rounds' ? 'Po posledním kole vyhrává nejvyšší skóre. Při remíze se hraje další kolo, dokud někdo nevede.' : d.cuEnd === 'target' ? 'Vyhrává, kdo první dosáhne cílového skóre – hra končí hned tou šipkou.' : 'Sčítají se všechny body bez limitu kol. Hru ukončíš v menu hry vpravo nahoře – vyhrává nejvyšší skóre.'}</p>`;
   }
+  if (!(d.type === 'countup' && d.cuEnd === 'rounds')) body += seg('KDYŽ NĚKDO DOHRAJE', 'playOn', [['true', 'HRAJE SE DÁL'], ['false', 'KONEC HRY']], String(d.playOn !== false && d.playOn !== 'false'));
   return `<div class="app">${hdr('NOVÁ HRA', 'home')}<main class="pad col g22">${body}</main><div class="foot"><button class="cta" data-a="go" data-v="players">DÁL: HRÁČI A TÝMY ${IC.arrow}</button></div></div>`;
 };
 V.players = () => {
   const d = S.draft, n = dCount(d), used = new Set(assigned(d)), avail = S.players.filter(p => !used.has(p.id));
   let body = seg('', 'teams', [['false', 'JEDNOTLIVCI'], ['true', 'TÝMY']], String(d.teams));
   if (!d.teams) {
-    body += `<section class="col g8"><h2 class="lbl">VE HŘE · POŘADÍ HODŮ</h2><div class="col">${d.order.length ? d.order.map((id, i) => { const p = pl(id); return `<div class="prow"><span class="ord">${i + 1}</span><i style="background:${p.color}"></i><b>${esc(p.name)}</b><button class="ib" data-a="upP" data-id="${id}" ${i ? '' : 'disabled'} aria-label="Posunout ${esc(p.name)} výš">${IC.up}</button><button class="ib" data-a="rmP" data-id="${id}" aria-label="Odebrat ${esc(p.name)}">${IC.x}</button></div>`; }).join('') : '<p class="note">Přidej hráče ze seznamu níže.</p>'}</div></section>`;
+    body += `<section class="col g8"><h2 class="lbl">VE HŘE · POŘADÍ HODŮ</h2><div class="col">${d.order.length ? d.order.map((id, i) => { const p = pl(id); return `<div class="prow"><span class="ord">${i + 1}</span><i style="background:${p.color}"></i><b>${esc(p.name)}</b><button class="ib" data-a="upP" data-id="${id}" ${i ? '' : 'disabled'} aria-label="Posunout ${esc(p.name)} výš">${IC.up}</button><button class="ib" data-a="rmP" data-id="${id}" aria-label="Odebrat ${esc(p.name)}">${IC.x}</button></div>`; }).join('') : ''}</div></section>`;
     body += `<section class="col g8"><h2 class="lbl">PŘIDAT DO HRY</h2><div class="col">${avail.map(p => `<button class="prow" data-a="addP" data-id="${p.id}" ${n >= 8 ? 'disabled' : ''}><span class="ord"></span><i style="background:${p.color}"></i><b>${esc(p.name)}</b><span></span><span class="plus">+ PŘIDAT</span></button>`).join('')}</div><button class="btn dash" data-a="newpOpen" data-ctx="order" ${n >= 8 ? 'disabled' : ''}>${IC.plus} NOVÝ HRÁČ</button></section>`;
   } else {
     body += `<div style="display:flex;align-items:center;justify-content:space-between;gap:12px"><span class="lbl">HRÁČŮ V TÝMU</span><div style="width:156px">${seg('', 'teamSize', [[2, '2'], [3, '3'], [4, '4']], d.teamSize, 'sm')}</div></div>`;
@@ -1124,14 +1144,14 @@ function scoreBoard(g) {
     const s = g.sides[g.cur], a = sideAgg(g, g.cur), p = curPlayer(g), n = g.sides.length;
     const avg = g.type === 'x01' ? 'Ø ' + fmt(a.d ? a.p / a.d * 3 : NaN) : 'Ø/KOLO ' + fmt(a.t ? a.p / a.t : NaN);
     const others = Array.from({length: n - 1}, (_, k) => g.sides[(g.cur + 1 + k) % n]);
-    return `<section class="sbw" aria-label="Skóre"><div class="sb on bm"><i style="background:${s.color}"></i><div class="m"><b>${esc(s.team ? p.name : s.name)}</b><span>${s.team ? esc(s.name) + ' · ' : 'NA TAHU · '}${avg}</span></div><strong>${sideVal(g, s)}</strong></div>${others.length ? `<div class="sbo">${others.map(x => `<div style="--c:${x.color}"><b>${esc(x.name)}</b><span>${sideVal(g, x)}</span></div>`).join('')}</div>` : ''}</section>`;
+    return `<section class="sbw" aria-label="Skóre"><div class="sb on bm"><i style="background:${s.color}"></i><div class="m"><b>${esc(s.team ? p.name : s.name)}</b><span>${s.team ? esc(s.name) + ' · ' : 'NA TAHU · '}${avg}</span></div><strong>${sideVal(g, s)}</strong></div>${others.length ? `<div class="sbo">${others.map(x => `<div style="--c:${x.color}"${x.done ? ' class="done"' : ''}><b>${esc(x.name)}</b><span>${x.done ? (g.places.indexOf(g.sides.indexOf(x)) + 1) + '.' : sideVal(g, x)}</span></div>`).join('')}</div>` : ''}</section>`;
   }
   const cp = g.sides.length > 3;
   return `<section class="sbw" aria-label="Skóre">${g.sides.map((s, i) => {
     const on = i === g.cur, a = sideAgg(g, i), p = curPlayer(g, i);
     const avg = g.type === 'x01' ? 'Ø ' + fmt(a.d ? a.p / a.d * 3 : NaN) : 'Ø/KOLO ' + fmt(a.t ? a.p / a.t : NaN);
-    const sub = s.team ? (on ? 'HÁZÍ ' : 'DALŠÍ ') + esc(p.name) + ' · ' + avg : (on ? 'NA TAHU · ' : '') + avg;
-    return `<div class="sb${on ? ' on' : ''}${cp ? ' cp' : ''}"><i style="background:${s.color}"></i><div class="m"><b>${esc(s.name)}</b><span>${sub}</span></div><strong>${sideVal(g, s)}</strong></div>`;
+    const sub = s.done ? (g.places.indexOf(i) + 1) + '. MÍSTO · ' + avg : s.team ? (on ? 'HÁZÍ ' : 'DALŠÍ ') + esc(p.name) + ' · ' + avg : (on ? 'NA TAHU · ' : '') + avg;
+    return `<div class="sb${on ? ' on' : ''}${cp ? ' cp' : ''}${s.done ? ' done' : ''}"><i style="background:${s.color}"></i><div class="m"><b>${esc(s.name)}</b><span>${sub}</span></div><strong>${sideVal(g, s)}</strong></div>`;
   }).join('')}</section>`;
 }
 function cricketBoard(g) {
@@ -1355,9 +1375,9 @@ V.game = () => {
   <div class="gmid">${g.type === 'cricket' ? cricketBoard(g) : scoreBoard(g)}${infoBar(g)}</div>${roundStrip(g)}${keypad(g)}${S.flash && S.flash.until > Date.now() ? `<div class="flash ${S.flash.kind}" role="status">${esc(S.flash.text)}</div>` : ''}</div>`;
 };
 function placement(g) {
+  if (g.places && g.places.length === g.sides.length) return g.places.slice();
   const idx = g.sides.map((_, i) => i);
-  const key = i => { const s = g.sides[i]; if (g.type === 'x01') return s.rem; if (g.type === 'countup') return -s.score; if (g.settings.cricketMode === 'cutthroat') return s.points; if (g.settings.cricketMode === 'noscore') return -CR.filter(t => s.marks[t] >= 3).length; return -s.points; };
-  return idx.sort((a, b) => (a === g.winner ? -1 : b === g.winner ? 1 : key(a) - key(b)));
+  return idx.sort((a, b) => (a === g.winner ? -1 : b === g.winner ? 1 : placeKey(g, a) - placeKey(g, b)));
 }
 V.result = () => {
   const g = S.result;
@@ -1381,12 +1401,12 @@ function statsOverview(tab) {
   const rows = S.players.map(p => ({p, x: M.f(p.id)})), played = rows.filter(r => r.x.games).sort((a, b) => (b.x[M.key] || 0) - (a.x[M.key] || 0)), idle = rows.filter(r => !r.x.games);
   const best = M.cols.map(c => Math.max(...played.map(r => +c[2](r.x) || 0)));
   const card = (r, i) => `<button class="stc" data-a="stats" data-id="${r.p.id}" style="--pc:${r.p.color}"><div class="stc-h"><span class="rk${i === 0 ? ' gold' : ''}">${i + 1}</span><b>${esc(r.p.name)}</b><small>${r.x.games} ${plural(r.x.games, 'ZÁPAS', 'ZÁPASY', 'ZÁPASŮ')} · ${r.x.wins} ${plural(r.x.wins, 'VÝHRA', 'VÝHRY', 'VÝHER')}</small>${IC.chev}</div><div class="stc-g">${M.cols.map((c, j) => `<div class="${played.length > 1 && best[j] > 0 && +c[2](r.x) === best[j] ? 'best' : ''}"><span>${c[0]}</span><b>${c[1](r.x)}</b></div>`).join('')}</div></button>`;
-  const body = played.length ? `<p class="note">${M.note} · ťukni na hráče pro podrobnosti</p>${played.map(card).join('')}` : `<div class="empty" style="padding:20px 0"><b>ZATÍM ŽÁDNÁ HRA</b><p class="note">Statistiky se ukážou po prvním odehraném zápase.</p></div>`;
+  const body = played.length ? `${played.map(card).join('')}` : `<div class="empty" style="padding:20px 0"><b>ZATÍM ŽÁDNÁ HRA</b><p class="note">Statistiky se ukážou po prvním odehraném zápase.</p></div>`;
   const rest = idle.length ? `<p class="note" style="margin-top:14px">ZATÍM NEHRÁLI: ${idle.map(r => `<button class="lnk" data-a="stats" data-id="${r.p.id}">${esc(r.p.name)}</button>`).join(', ')}</p>` : '';
   return `<div class="app"><header class="shdr"><h1>STATISTIKY</h1></header><main class="col" style="padding:4px 16px 24px;flex:1;gap:0">${seg('', 'tab', [['x01', 'X01'], ['cricket', 'CRICKET'], ['countup', 'COUNT UP']], tab, 'sm', 'stab')}<div style="height:10px"></div>${body}${rest}</main>${nav('stats')}</div>`;
 }
 V.stats = () => {
-  if (!S.players.length) return `<div class="app"><header class="shdr"><h1>STATISTIKY</h1></header><div class="empty"><b>ZATÍM ŽÁDNÍ HRÁČI</b><p class="note">Statistiky se počítají z odehraných her každého profilu.</p><button class="btn acc" data-a="go" data-v="profiles">PŘIDAT HRÁČE</button></div><div style="flex:1"></div>${nav('stats')}</div>`;
+  if (!S.players.length) return `<div class="app"><header class="shdr"><h1>STATISTIKY</h1></header><div class="empty"><b>ZATÍM ŽÁDNÍ HRÁČI</b><button class="btn acc" data-a="go" data-v="profiles">PŘIDAT HRÁČE</button></div><div style="flex:1"></div>${nav('stats')}</div>`;
   const tab = S.stats.tab;
   if (!pl(S.stats.pid)) return statsOverview(tab);
   const p = pl(S.stats.pid);
@@ -1411,7 +1431,7 @@ V.stats = () => {
   const hh = h2h(p.id);
   if (hh.length) body += `<section class="col g8"><h2 class="lbl">VZÁJEMNÉ ZÁPASY</h2><div class="hh">${hh.slice(0, 6).map(r => `<div><span>VS ${esc(r.name)}</span><b>${r.w}:${r.l}</b></div>`).join('')}</div></section>`;
   const rec = S.matches.filter(m => sideOf(m, p.id) >= 0).slice(-8).reverse();
-  if (rec.length) body += `<section class="col g8"><h2 class="lbl">POSLEDNÍ ZÁPASY</h2>${list(rec.map(m => { const si = sideOf(m, p.id), opp = m.sides.filter((_, j) => j !== si).map(s => esc(s.name)).join(', '); const res = m.sides.length < 2 ? `<b class="l">TRÉNINK</b>` : m.winner === si ? '<b class="w">VÝHRA</b>' : '<b class="l">PROHRA</b>'; return [dstr(m.date) + ' · ' + typeTitle(m) + (opp ? ' · vs ' + opp : ''), res]; })).replace(/<b><b/g, '<b').replace(/<\/b><\/b>/g, '</b>')}</section>`;
+  if (rec.length) body += `<section class="col g8"><h2 class="lbl">POSLEDNÍ ZÁPASY</h2>${list(rec.map(m => { const si = sideOf(m, p.id), opp = m.sides.filter((_, j) => j !== si).map(s => esc(s.name)).join(', '); const res = m.sides.length < 2 ? `<b class="l">TRÉNINK</b>` : m.winner === si ? '<b class="w">VÝHRA</b>' : '<b class="l">PROHRA</b>'; return [dstr(m.date) + ' · ' + typeTitle(m) + (opp ? ' · vs ' + opp : ''), res + `<button class="ib xm" data-a="askDelM" data-id="${esc(m.id)}" aria-label="Smazat zápas">${IC.x}</button>`]; })).replace(/<b><b/g, '<b').replace(/<\/b><\/b>/g, '</b>')}</section>`;
   return `<div class="app"><header class="shdr"><button class="ib" data-a="sback" aria-label="Zpět na přehled hráčů" style="margin-left:-12px">${IC.back}</button><h1 style="flex:1">STATISTIKY</h1><button class="psel" data-a="spickOpen" aria-label="Vybrat hráče"><i style="background:${p.color}"></i><span>${esc(p.name)}</span>${IC.down}</button></header>
   <main class="col g14" style="padding:4px 20px 24px;flex:1">${seg('', 'tab', [['x01', 'X01'], ['cricket', 'CRICKET'], ['countup', 'COUNT UP']], tab, 'sm', 'stab')}${body}</main>${nav('stats')}</div>`;
 };
@@ -1423,11 +1443,11 @@ V.profiles = () => {
   const syncTxt = {file: 'Data se ukládají do souboru v tomto počítači (složka %APPDATA%\\Sipky). Záloha do souboru je pojistka navíc.', cloud: 'Data se ukládají k tvému účtu – stejná na mobilu i na počítači. Záloha do souboru je pojistka navíc.', loading: 'Načítám data z účtu…', offline: 'Data z účtu teď nejdou načíst – ukládám do tohoto prohlížeče.', local: 'Data jsou uložená v tomto prohlížeči. Občas si udělej zálohu do souboru.'}[S.sync];
   const hasLocal = CL.on && ((LS.get('.p') || []).length || (LS.get('.m') || []).length);
   const kanc = !clAvail() ? '' : CL.on
-    ? `<section class="col g8" style="padding:0 20px"><h2 class="lbl">KANCELÁŘ ${esc(CL.code)}</h2><p class="note" style="font-size:14px;color:#D5D7DC">Hráči a hry se sdílejí se všemi telefony v kanceláři, zapisovat může kdokoli. Tento telefon: ${esc(CL.who)}.</p><span class="clst" id="clst">${clStatusTxt()}</span>${hasLocal ? '<div class="row2"><button class="btn" data-a="clUpOpen">NAHRÁT DATA</button><button class="btn" data-a="clLeaveAsk">ODPOJIT</button></div>' : '<button class="btn" data-a="clLeaveAsk">ODPOJIT KANCELÁŘ</button>'}</section>`
-    : `<section class="col g8" style="padding:0 20px"><h2 class="lbl">KANCELÁŘ</h2><p class="note" style="font-size:14px;color:#D5D7DC">Společní hráči a hry pro všechny telefony v kanceláři – každý může zapisovat a všichni vidí stav živě.</p><button class="btn acc" data-a="clOpen">PŘIPOJIT KANCELÁŘ</button></section>`;
+    ? `<section class="col g8" style="padding:0 20px"><h2 class="lbl">KANCELÁŘ ${esc(CL.code)}</h2><span class="clst" id="clst">${clStatusTxt()}</span>${hasLocal ? '<div class="row2"><button class="btn" data-a="clUpOpen">NAHRÁT DATA</button><button class="btn" data-a="clLeaveAsk">ODPOJIT</button></div>' : '<button class="btn" data-a="clLeaveAsk">ODPOJIT KANCELÁŘ</button>'}</section>`
+    : `<section class="col g8" style="padding:0 20px"><h2 class="lbl">KANCELÁŘ</h2><button class="btn acc" data-a="clOpen">PŘIPOJIT KANCELÁŘ</button></section>`;
   return `<div class="app"><header class="shdr"><h1>HRÁČI</h1><button class="btn acc" style="min-height:44px;font-style:italic;font-weight:800" data-a="newpOpen" data-ctx="">${IC.plus} NOVÝ HRÁČ</button></header>
-  <main class="col g22" style="flex:1;padding-bottom:24px"><div style="border-top:1px solid var(--ln)">${rows || '<div class="empty"><b>ZATÍM ŽÁDNÍ HRÁČI</b><p class="note">Přidej první profil – stačí jméno.</p></div>'}</div>
-  ${kanc}<section class="col g8" style="padding:0 20px"><h2 class="lbl">ZÁLOHA DAT</h2><p class="note" style="font-size:14px;color:#D5D7DC">${CL.on ? 'Data jsou v kanceláři na serveru a kopie v tomto telefonu. Záloha do souboru je pojistka navíc.' : syncTxt}</p><div class="row2"><button class="btn" data-a="exportOpen">${IC.dl} EXPORTOVAT</button><button class="btn" data-a="importOpen">${IC.ul} IMPORTOVAT</button></div><span class="lbl" style="font-size:12px;letter-spacing:1.5px">POSLEDNÍ ZÁLOHA ${S.meta.lastBackup ? dstr(S.meta.lastBackup) + ' ' + new Date(S.meta.lastBackup).getFullYear() : '– ZATÍM ŽÁDNÁ'}</span><span class="lbl" style="font-size:11px;letter-spacing:1.5px;opacity:.7">VERZE ${APP_VERSION}</span></section></main>${nav('profiles')}</div>`;
+  <main class="col g22" style="flex:1;padding-bottom:24px"><div style="border-top:1px solid var(--ln)">${rows || '<div class="empty"><b>ZATÍM ŽÁDNÍ HRÁČI</b></div>'}</div>
+  ${kanc}<section class="col g8" style="padding:0 20px"><h2 class="lbl">ZÁLOHA DAT</h2><div class="row2"><button class="btn" data-a="exportOpen">${IC.dl} EXPORTOVAT</button><button class="btn" data-a="importOpen">${IC.ul} IMPORTOVAT</button></div>${S.matches.length ? '<button class="btn" style="color:#FF7A7A" data-a="askReset">VYNULOVAT STATISTIKY</button>' : ''}<span class="lbl" style="font-size:12px;letter-spacing:1.5px">POSLEDNÍ ZÁLOHA ${S.meta.lastBackup ? dstr(S.meta.lastBackup) + ' ' + new Date(S.meta.lastBackup).getFullYear() : '– ZATÍM ŽÁDNÁ'}</span><span class="lbl" style="font-size:11px;letter-spacing:1.5px;opacity:.7">VERZE ${APP_VERSION}</span></section></main>${nav('profiles')}</div>`;
 };
 function sheetBody(sh) {
   const g = S.current;
@@ -1439,7 +1459,7 @@ function sheetBody(sh) {
     }
     case 'cloud': {
       const c = LS.get('.clcfg') || {}, need = !CLOUD_URL, val = (k, d) => esc(sh[k] != null ? sh[k] : d || '');
-      return `<h2 class="sh2">KANCELÁŘ</h2><div class="col g8">${need ? `<label class="lbl" for="clurl">ADRESA PROJEKTU SUPABASE</label><input class="inp sm" id="clurl" placeholder="https://xxxx.supabase.co" value="${val('url', c.url)}" autocomplete="off" autocapitalize="off" spellcheck="false"><label class="lbl" for="clkey">PUBLISHABLE KEY</label><input class="inp sm" id="clkey" placeholder="sb_publishable_…" value="${val('key', c.key)}" autocomplete="off" autocapitalize="off" spellcheck="false">` : ''}<label class="lbl" for="clcode">KÓD KANCELÁŘE</label><input class="inp" id="clcode" maxlength="12" placeholder="např. TK4G" value="${val('code')}" autocomplete="off" autocapitalize="characters" spellcheck="false"><label class="lbl" for="clwho">JMÉNO TOHOTO TELEFONU</label><input class="inp" id="clwho" maxlength="20" placeholder="např. Adam" value="${val('who')}" autocomplete="off">${sh.err ? `<p class="note" role="alert" style="color:#FF7A7A;font-size:14px">${esc(sh.err)}</p>` : ''}<button class="btn acc" data-a="clJoin"${sh.busy ? ' disabled' : ''}>${sh.busy ? 'PŘIPOJUJU…' : 'PŘIPOJIT'}</button><button class="ghost" data-a="closeSheet">ZRUŠIT</button></div>`;
+      return `<h2 class="sh2">KANCELÁŘ</h2><div class="col g8">${need ? `<label class="lbl" for="clurl">ADRESA PROJEKTU SUPABASE</label><input class="inp sm" id="clurl" value="${val('url', c.url)}" autocomplete="off" autocapitalize="off" spellcheck="false"><label class="lbl" for="clkey">PUBLISHABLE KEY</label><input class="inp sm" id="clkey" value="${val('key', c.key)}" autocomplete="off" autocapitalize="off" spellcheck="false">` : ''}<label class="lbl" for="clcode">KÓD KANCELÁŘE</label><input class="inp" id="clcode" maxlength="12" value="${val('code')}" autocomplete="off" autocapitalize="characters" spellcheck="false"><label class="lbl" for="clwho">JMÉNO TOHOTO TELEFONU</label><input class="inp" id="clwho" maxlength="20" value="${val('who')}" autocomplete="off">${sh.err ? `<p class="note" role="alert" style="color:#FF7A7A;font-size:14px">${esc(sh.err)}</p>` : ''}<button class="btn acc" data-a="clJoin"${sh.busy ? ' disabled' : ''}>${sh.busy ? 'PŘIPOJUJU…' : 'PŘIPOJIT'}</button><button class="ghost" data-a="closeSheet">ZRUŠIT</button></div>`;
     }
     case 'clUp': {
       const lp = (LS.get('.p') || []).length, lm = (LS.get('.m') || []).length;
@@ -1451,7 +1471,7 @@ function sheetBody(sh) {
       return `<h2 class="sh2">TUHLE ŠIPKU UŽ NĚKDO ZAPSAL</h2><p class="note" style="font-size:15px;color:#D5D7DC">${esc(c.srv.who || 'Jiný telefon')} zapsal ${clLbl(c.srv)} jako ${c.op.seq}. šipku hry. Ty jsi zapsal ${clLbl(c.op)}.</p><div class="opts"><button class="mi" data-a="clKeep">ZAPSAT MŮJ HOD ${clLbl(c.op)} JAKO DALŠÍ</button><button class="mi red" data-a="clDrop">ZAHODIT MŮJ HOD – BYL TO TENTÝŽ</button></div>`;
     }
     case 'gmenu':
-      return `<h2 class="sh2">MENU HRY</h2><div class="opts"><button class="mi" data-a="closeSheet">POKRAČOVAT</button>${g.type === 'countup' ? '<button class="mi" data-a="endCountup">UKONČIT A VYHODNOTIT</button>' : ''}<button class="mi" data-a="go" data-v="home">DO MENU (HRA ZŮSTANE ROZEHRANÁ)</button><button class="mi red" data-a="askDiscard">ZAHODIT HRU</button></div>`;
+      return `<h2 class="sh2">MENU HRY</h2><div class="opts"><button class="mi" data-a="closeSheet">POKRAČOVAT</button><button class="mi" data-a="endCountup">UKONČIT A VYHODNOTIT${g.places && g.places.length ? ' (ZBYTEK PODLE SKÓRE)' : ''}</button><button class="mi" data-a="go" data-v="home">DO MENU (HRA ZŮSTANE ROZEHRANÁ)</button><button class="mi red" data-a="askDiscard">ZAHODIT HRU</button></div>`;
     case 'confirm':
       return `<h2 class="sh2">${sh.title}</h2><p class="note" style="font-size:15px;color:#D5D7DC">${sh.text}</p><div class="row2"><button class="btn" data-a="closeSheet">ZPĚT</button><button class="btn red" data-a="${sh.ok}" data-id="${esc(sh.id || '')}">${sh.okl}</button></div>`;
     case 'newp':
@@ -1459,7 +1479,7 @@ function sheetBody(sh) {
     case 'edit': {
       const p = pl(sh.id);
       if (!p) return '';
-      return `<h2 class="sh2">UPRAVIT HRÁČE</h2><form class="col g8" data-f="edit"><label class="lbl" for="np">JMÉNO</label><input class="inp" id="np" name="name" maxlength="20" autocomplete="off" required value="${esc(sh.name)}"><span class="lbl">BARVA</span><div class="sw">${PALETTE.map(c => `<button type="button" data-a="pcolor" data-c="${c}" aria-label="Barva ${c}" aria-pressed="${c === sh.c}" style="background:${c}"></button>`).join('')}</div><span class="lbl">MOTIV TERČE</span><div class="thp">${boardMini(themeObj(sh.th))}</div><div class="ths">${THEMES.map(t => `<button type="button" data-a="pth" data-k="${t.key}" aria-pressed="${sh.th === t.key}"><i style="background:${t.double[0]}"></i><i style="background:${t.single[1]}"></i><i style="background:${t.double[1]}"></i><span>${esc(t.name)}</span></button>`).join('')}<button type="button" data-a="pthOpen" aria-pressed="${!!sh.th && typeof sh.th === 'object'}"><span>+ ${sh.th && typeof sh.th === 'object' ? esc(sh.th.name) : 'VLASTNÍ'}</span></button></div>${sh.cust ? `<textarea class="ta" id="pthj" placeholder="Vlož motiv od jiné AI podle šablony (celou odpověď)…" aria-label="Vlastní motiv">${esc(sh.cj || '')}</textarea>${sh.terr ? `<p class="note" role="alert" style="color:#FF7A7A;font-size:14px">${esc(sh.terr)}</p>` : ''}<button type="button" class="btn" data-a="pthApply">POUŽÍT VLASTNÍ MOTIV</button>` : ''}<div class="row2"><button type="button" class="btn" data-a="closeSheet">ZRUŠIT</button><button type="submit" class="btn acc">ULOŽIT</button></div><button type="button" class="ghost" style="color:#FF7A7A" data-a="askDelP" data-id="${p.id}">SMAZAT HRÁČE</button></form>`;
+      return `<h2 class="sh2">UPRAVIT HRÁČE</h2><form class="col g8" data-f="edit"><label class="lbl" for="np">JMÉNO</label><input class="inp" id="np" name="name" maxlength="20" autocomplete="off" required value="${esc(sh.name)}"><span class="lbl">BARVA</span><div class="sw">${PALETTE.map(c => `<button type="button" data-a="pcolor" data-c="${c}" aria-label="Barva ${c}" aria-pressed="${c === sh.c}" style="background:${c}"></button>`).join('')}</div><span class="lbl">MOTIV TERČE</span><div class="thp">${boardMini(themeObj(sh.th))}</div><div class="ths">${THEMES.map(t => `<button type="button" data-a="pth" data-k="${t.key}" aria-pressed="${sh.th === t.key}"><i style="background:${t.double[0]}"></i><i style="background:${t.single[1]}"></i><i style="background:${t.double[1]}"></i><span>${esc(t.name)}</span></button>`).join('')}<button type="button" data-a="pthOpen" aria-pressed="${!!sh.th && typeof sh.th === 'object'}"><span>+ ${sh.th && typeof sh.th === 'object' ? esc(sh.th.name) : 'VLASTNÍ'}</span></button></div>${sh.cust ? `<textarea class="ta" id="pthj" aria-label="Vlastní motiv">${esc(sh.cj || '')}</textarea>${sh.terr ? `<p class="note" role="alert" style="color:#FF7A7A;font-size:14px">${esc(sh.terr)}</p>` : ''}<button type="button" class="btn" data-a="pthApply">POUŽÍT VLASTNÍ MOTIV</button>` : ''}<div class="row2"><button type="button" class="btn" data-a="closeSheet">ZRUŠIT</button><button type="submit" class="btn acc">ULOŽIT</button></div><button type="button" class="ghost" style="color:#FF7A7A" data-a="askDelP" data-id="${p.id}">SMAZAT HRÁČE</button></form>`;
     }
     case 'pick': {
       const used = new Set(assigned(S.draft)), av = S.players.filter(p => !used.has(p.id));
@@ -1468,9 +1488,9 @@ function sheetBody(sh) {
     case 'spick':
       return `<h2 class="sh2">VYBER HRÁČE</h2><div class="opts">${S.players.map(p => `<button class="mi" data-a="spick" data-id="${p.id}"><i style="background:${p.color}"></i>${esc(p.name)}</button>`).join('')}</div><button class="ghost" data-a="closeSheet">ZAVŘÍT</button>`;
     case 'export':
-      return `<h2 class="sh2">EXPORT ZÁLOHY</h2><p class="note">Soubor obsahuje všechny profily a odehrané zápasy. Když stažení nejde, zkopíruj text a ulož si ho.</p><div class="row2"><button class="btn acc" data-a="dlFile">${IC.dl} STÁHNOUT</button><button class="btn" data-a="copyExp">KOPÍROVAT</button></div><textarea class="ta" id="expta" readonly aria-label="Obsah zálohy">${esc(exportJson())}</textarea><button class="ghost" data-a="closeSheet">ZAVŘÍT</button>`;
+      return `<h2 class="sh2">EXPORT ZÁLOHY</h2><div class="row2"><button class="btn acc" data-a="dlFile">${IC.dl} STÁHNOUT</button><button class="btn" data-a="copyExp">KOPÍROVAT</button></div><textarea class="ta" id="expta" readonly aria-label="Obsah zálohy">${esc(exportJson())}</textarea><button class="ghost" data-a="closeSheet">ZAVŘÍT</button>`;
     case 'import':
-      return `<h2 class="sh2">IMPORT ZÁLOHY</h2><p class="note">Vyber soubor .json nebo vlož jeho obsah. Hráči a zápasy se sloučí s tím, co už máš – nic se nesmaže.</p><label class="btn" for="impf">${IC.ul} VYBRAT SOUBOR</label><input type="file" id="impf" accept=".json,application/json,text/plain" hidden><textarea class="ta" id="impta" aria-label="Obsah zálohy" placeholder="…nebo sem vlož obsah zálohy"></textarea><div class="row2"><button class="btn" data-a="closeSheet">ZRUŠIT</button><button class="btn acc" data-a="doImport">NAČÍST</button></div>`;
+      return `<h2 class="sh2">IMPORT ZÁLOHY</h2><label class="btn" for="impf">${IC.ul} VYBRAT SOUBOR</label><input type="file" id="impf" accept=".json,application/json,text/plain" hidden><textarea class="ta" id="impta" aria-label="Obsah zálohy"></textarea><div class="row2"><button class="btn" data-a="closeSheet">ZRUŠIT</button><button class="btn acc" data-a="doImport">NAČÍST</button></div>`;
   }
   return '';
 }
@@ -1538,6 +1558,7 @@ const A = {
     if (!canStart(d)) return;
     S.meta.lastDraft = JSON.parse(JSON.stringify(d)); persistMeta();
     const settings = d.type === 'x01' ? {start: d.start, inMode: d.inMode, outMode: d.outMode} : d.type === 'cricket' ? {cricketMode: d.cricketMode} : {end: d.cuEnd || 'none', rounds: Math.min(99, Math.max(1, Math.round(+d.cuRounds) || 10)), target: Math.min(9999, Math.max(10, Math.round(+d.cuTarget) || 500))};
+    settings.playOn = d.playOn !== false && d.playOn !== 'false';
     S.current = newGame(d.type, settings, buildSides(d)); if (CL.on) clNewGame(S.current); persistCurrent();
     S.view = 'game'; S.flash = null; wake(); window.scrollTo(0, 0);
   },
@@ -1553,9 +1574,9 @@ const A = {
     const g = S.current;
     if (!g) return;
     if (g.darts.length) endTurn(g);
-    let wi = 0;
-    g.sides.forEach((s, i) => { if (s.score > g.sides[wi].score) wi = i; });
-    finish(g, wi, 'NEJVYŠŠÍ SKÓRE · ' + g.sides[wi].score);
+    rankRest(g);
+    const w = g.sides[g.places[0]];
+    finish(g, g.places[0], g.info1 || (g.type === 'countup' ? 'NEJVYŠŠÍ SKÓRE · ' + w.score : g.type === 'x01' ? 'UKONČENO · ZBÝVALO ' + w.rem : 'UKONČENO · ' + w.points + ' B.'));
   },
   rematch() {
     const r = S.result;
@@ -1568,6 +1589,10 @@ const A = {
   stats(ds) { S.stats.pid = ds.id; S.view = 'stats'; S.sheet = null; window.scrollTo(0, 0); },
   stab(ds) { S.stats.tab = ds.v; },
   sback() { S.stats.pid = null; window.scrollTo(0, 0); },
+  askDelM(ds) { const m = S.matches.find(x => x.id === ds.id); if (!m) return; S.sheet = {k: 'confirm', title: 'SMAZAT ZÁPAS?', text: esc(dstr(m.date) + ' · ' + typeTitle(m) + ' · ' + m.sides.map(s => s.name).join(', ')) + '. Zápas zmizí ze statistik' + (CL.on ? ' na všech telefonech v kanceláři.' : '.'), ok: 'delM', id: ds.id, okl: 'SMAZAT'}; },
+  delM(ds) { S.matches = S.matches.filter(m => m.id !== ds.id); LS.set(lk('.m'), S.matches); if (CL.on) clPush({k: 'v', gid: ds.id}); S.sheet = null; toast('Zápas smazán'); },
+  askReset() { const n = S.matches.length; S.sheet = {k: 'confirm', title: 'VYNULOVAT STATISTIKY?', text: 'Smaže se všech ' + n + ' ' + plural(n, 'odehraný zápas', 'odehrané zápasy', 'odehraných zápasů') + (CL.on ? ' celé kanceláře, na všech telefonech' : '') + '. Hráči zůstanou. Doporučuju nejdřív udělat export zálohy.', ok: 'resetStats', okl: 'VYNULOVAT'}; },
+  resetStats() { if (CL.on) S.matches.forEach(m => clPush({k: 'v', gid: m.id})); S.matches = []; LS.set(lk('.m'), S.matches); S.sheet = null; toast('Statistiky vynulovány'); },
   spickOpen() { S.sheet = {k: 'spick'}; },
   spick(ds) { S.stats.pid = ds.id; S.sheet = null; },
   newpOpen(ds) { S.sheet = {k: 'newp', ctx: ds.ctx, focus: true}; },
@@ -1785,7 +1810,7 @@ async function clRefreshGame(gid, open) {
   if (r.row.status === 'void') { if (S.current && S.current.id === gid) { S.current = null; CL.gid = null; clSaveState(); persistCurrent(); if (S.view === 'game') { S.view = 'home'; toast('Hru zahodil jiný telefon'); } } render(); return; }
   const g = clReplay(r.row, clCompose(gid, r.th));
   if (r.row.status === 'done' || g.finished) {
-    if (!g.finished && r.row.result) { g.finished = true; g.winner = r.row.result.winner; g.info = r.row.result.info; }
+    if (!g.finished && r.row.result) { g.finished = true; g.winner = r.row.result.winner; g.info = r.row.result.info; if (r.row.result.places) g.places = r.row.result.places; }
     if (S.current && S.current.id === gid || open) { S.result = stripHist(g); S.current = null; CL.gid = null; clSaveState(); persistCurrent(); if (S.view === 'game' || open) { S.view = 'result'; S.sheet = null; } }
     render(); return;
   }
