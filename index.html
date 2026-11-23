@@ -251,7 +251,7 @@ button:disabled{cursor:default}
 'use strict';
 const $app = document.getElementById('app'), $sheet = document.getElementById('sheet'), $toast = document.getElementById('toast');
 const KEY = 'sipky.v1';
-const APP_VERSION = '1.3';
+const APP_VERSION = '1.4';
 const PALETTE = ['#FF6B3D','#2EC5F0','#B28CFF','#19C37D','#FF8FB1','#FFB547','#7CC4FF','#D9DCE1'];
 const TEAMC = ['#FF6B3D','#2EC5F0','#B28CFF','#19C37D'], TEAMN = ['A','B','C','D'];
 const CR = [20,19,18,17,16,15,25];
@@ -663,7 +663,7 @@ function importData(txt) {
 }
 
 /* ---------- hlasové zadávání ---------- */
-const V0 = {kind: null, d: null, rec: null, state: 'idle', heard: '', partial: '', noLang: false, err: '', srSession: 0, srActive: -1, srWatch: null, open: false, holding: false, toggle: false, dirty: false, stopAsap: false, t0: 0, typed: '', capturing: false, running: false, res: [], segFrom: 0, finTimer: null, idleT: null, log: []};
+const V0 = {kind: null, d: null, rec: null, state: 'idle', heard: '', partial: '', noLang: false, err: '', srSession: 0, srActive: -1, srWatch: null, open: false, holding: false, toggle: false, dirty: false, stopAsap: false, t0: 0, typed: '', mr: null, chunks: [], stream: null, discard: false, recT0: 0, maxT: null, capturing: false, running: false, res: [], segFrom: 0, finTimer: null, idleT: null, log: []};
 const strip = s => s.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
 const NUMW = {jedna:1, jeden:1, jednu:1, jednicka:1, jednicku:1, dva:2, dve:2, tri:3, ctyri:4, ctyrka:4, ctyrku:4, pet:5, petka:5, petku:5, sest:6, sestka:6, sestku:6, sedm:7, sedmicka:7, sedmicku:7, osm:8, osmicka:8, osmicku:8, devet:9, devitka:9, devitku:9, deset:10, desitka:10, desitku:10, jedenact:11, dvanact:12, trinact:13, ctrnact:14, patnact:15, sestnact:16, sedmnact:17, osmnact:18, devatenact:19, dvacet:20, dvacitka:20, dvacitku:20, petadvacet:25, padesat:50};
 const WSET = s => new Set(s.split(' '));
@@ -720,11 +720,11 @@ function vOpen() {
   vUpdate();
 }
 function vClose() {
-  // prohlížečové rozpoznávání nechávám běžet na pozadí – na iPhonu se druhé spuštění často nepovede
-  if (V0.kind === 'sr') { V0.capturing = false; clearTimeout(V0.finTimer); vIdleTimer(); }
+  if (V0.kind === 'sr') { V0.capturing = false; clearTimeout(V0.finTimer); if (V0.rec) { const r = V0.rec; V0.rec = null; V0.running = false; try { r.abort(); } catch (e) {} } }
+  if (V0.kind === 'rec') { clearTimeout(V0.maxT); if (V0.mr && V0.mr.state === 'recording') { V0.discard = true; try { V0.mr.stop(); } catch (e) {} } V0.capturing = false; vIdleTimer(); }
   if (V0.kind === 'dict' && V0.d && V0.d.active()) V0.d.stop().catch(() => {});
   V0.open = false; V0.holding = false; V0.toggle = false; V0.typed = '';
-  if (V0.kind !== 'sr' || V0.state !== 'idle') V0.state = 'idle';
+  V0.state = 'idle';
   $vp.hidden = true; $vp.innerHTML = '';
   render();
 }
@@ -835,20 +835,16 @@ function vFinish() {
 }
 function vIdleTimer() {   // po 3 minutách bez použití mikrofon vypni
   clearTimeout(V0.idleT);
-  V0.idleT = setTimeout(() => { if (!V0.capturing && V0.rec) { try { V0.rec.stop(); } catch (e) {} } }, 180000);
+  V0.idleT = setTimeout(() => { if (!V0.capturing) srShutdown(); }, 180000);
 }
 function vCapture() {
   V0.heard = ''; V0.partial = ''; V0.err = ''; V0.typed = '';
   const inp = document.getElementById('vtype'); if (inp) inp.value = '';
+  if (V0.kind === 'rec') { recStart(); return; }
   V0.capturing = true; clearTimeout(V0.idleT);
-  if (V0.rec && V0.running) {        // běží → jen začni zapisovat od teď
-    V0.segFrom = V0.res.length;
-    V0.state = 'listening'; vLog('poslech');
-    return;
-  }
   V0.res = []; V0.segFrom = 0;
   try {
-    if (V0.rec) { try { V0.rec.abort(); } catch (e) {} }
+    if (V0.rec) { const old = V0.rec; V0.rec = null; try { old.abort(); } catch (e) {} }
     V0.rec = srMake(); V0.state = 'starting'; vLog('spouštím');
     V0.rec.start();
     clearTimeout(V0.srWatch);
@@ -857,17 +853,77 @@ function vCapture() {
     }, 5000);
   } catch (e) { V0.rec = null; V0.capturing = false; V0.state = 'idle'; V0.err = 'Hlasové zadávání tu nejde spustit (' + (e && e.name || 'chyba') + ').'; vLog('výjimka:' + (e && e.name)); }
 }
-function vRelease() {   // po puštění ještě chvíli čekej na dozvuk výsledků
+function vRelease() {
   if (!V0.capturing) return;
+  if (V0.kind === 'rec') { recStop(); return; }
   if (V0.state === 'starting') { V0.capturing = false; V0.state = 'idle'; V0.err = 'Pustil jsi moc brzy – drž, dokud mluvíš.'; vUpdate(); return; }
   V0.state = 'processing'; vUpdate();
+  try { V0.rec && V0.rec.stop(); } catch (e) {}   // prohlížeč pošle výsledek a ukončí relaci
   clearTimeout(V0.finTimer);
-  V0.finTimer = setTimeout(vFinish, 1300);
-  vIdleTimer();
+  V0.finTimer = setTimeout(vFinish, 3000);       // pojistka
+}
+/* ---- nahrávání + přepis přes server (Whisper na Groq): spolehlivé i na iPhonu ---- */
+function recMime() {
+  if (!window.MediaRecorder || !MediaRecorder.isTypeSupported) return '';
+  for (const t of ['audio/mp4', 'audio/webm;codecs=opus', 'audio/webm', 'audio/ogg;codecs=opus']) if (MediaRecorder.isTypeSupported(t)) return t;
+  return '';
+}
+function recStart() {
+  V0.capturing = true; V0.discard = false; V0.state = 'starting'; vLog('mikrofon…'); vUpdate();
+  const go = stream => {
+    if (!V0.capturing) { vLog('mikrofon připraven'); return; }
+    const mt = recMime();
+    let mr;
+    try { mr = mt ? new MediaRecorder(stream, {mimeType: mt}) : new MediaRecorder(stream); }
+    catch (e) { V0.capturing = false; V0.state = 'idle'; V0.err = 'Nahrávání tu nejde (' + (e && e.name) + ').'; vUpdate(); flushRender(); return; }
+    V0.mr = mr; V0.chunks = [];
+    mr.ondataavailable = e => { if (e.data && e.data.size) V0.chunks.push(e.data); };
+    mr.onstop = recSend;
+    mr.onerror = e => { vLog('chyba nahrávání'); V0.err = 'Nahrávání selhalo.'; };
+    mr.start(250);
+    V0.recT0 = Date.now(); V0.state = 'listening'; vLog('nahrávám'); vUpdate();
+    clearTimeout(V0.maxT);
+    V0.maxT = setTimeout(() => { if (V0.mr && V0.mr.state === 'recording') { vLog('limit 15 s'); recStop(); } }, 15000);
+  };
+  if (V0.stream && V0.stream.active) go(V0.stream);
+  else navigator.mediaDevices.getUserMedia({audio: {echoCancellation: true, noiseSuppression: true, autoGainControl: true}})
+    .then(s => { V0.stream = s; go(s); })
+    .catch(e => {
+      V0.capturing = false; V0.state = 'idle'; V0.holding = false;
+      V0.err = e && e.name === 'NotAllowedError' ? 'Mikrofon není povolený. Na iPhonu: Nastavení → Safari → Mikrofon → Povolit (pak aplikaci zavři a otevři).' : 'Mikrofon nejde zapnout (' + (e && e.name || 'chyba') + ').';
+      vLog('mikrofon:' + (e && e.name)); vUpdate(); flushRender();
+    });
+}
+function recStop() {
+  clearTimeout(V0.maxT);
+  if (V0.state === 'starting') { V0.capturing = false; V0.state = 'idle'; V0.err = 'Mikrofon je připravený – teď tlačítko podrž a mluv.'; vUpdate(); return; }
+  if (V0.mr && V0.mr.state === 'recording') {
+    V0.state = 'processing'; vUpdate();
+    try { V0.mr.stop(); } catch (e) { recSend(); }
+  }
+}
+function recSend() {
+  const mr = V0.mr; V0.mr = null;
+  if (V0.discard) { V0.discard = false; V0.capturing = false; return; }
+  const type = (mr && mr.mimeType) || recMime() || 'audio/mp4';
+  const blob = new Blob(V0.chunks || [], {type}); V0.chunks = [];
+  const fin = () => { V0.capturing = false; V0.state = 'idle'; V0.toggle = false; vUpdate(); vAfterText(); flushRender(); };
+  if (blob.size < 1500 || Date.now() - V0.recT0 < 500) { V0.err = 'Nahrávka je moc krátká – drž tlačítko, dokud mluvíš.'; vLog('krátké'); fin(); return; }
+  vLog('odesílám ' + Math.max(1, Math.round(blob.size / 1024)) + ' kB');
+  const ac = new AbortController(), t = setTimeout(() => ac.abort(), 20000);
+  fetch('/api/prepis', {method: 'POST', headers: {'Content-Type': type.split(';')[0], 'X-Sipky': '1'}, body: blob, signal: ac.signal})
+    .then(r => r.json().catch(() => ({error: 'bad_json', status: r.status})))
+    .then(j => {
+      if (j && typeof j.text === 'string') { V0.heard = j.text.trim(); vLog('přepis hotový'); if (!V0.heard) V0.err = 'Přepis je prázdný – mluv blíž k telefonu.'; }
+      else if (j && j.error === 'no_key') { V0.err = 'Na Netlify chybí klíč GROQ_API_KEY.'; vLog('chybí klíč'); }
+      else { V0.err = 'Přepis selhal' + (j && j.detail ? ': ' + j.detail : '') + '. Zkus znovu.'; vLog('chyba přepisu ' + (j && (j.status || j.error) || '')); }
+    })
+    .catch(e => { V0.err = e && e.name === 'AbortError' ? 'Přepis trvá moc dlouho – zkontroluj internet.' : 'Bez spojení se serverem – zkontroluj internet.'; vLog('síť:' + (e && e.name)); })
+    .finally(() => { clearTimeout(t); fin(); });
 }
 function flushRender() { if (V0.dirty && !V0.holding) { V0.dirty = false; render(); } }
 function pttDown(el, e) {
-  if (!S.current || V0.kind !== 'sr') return;
+  if (!S.current || (V0.kind !== 'sr' && V0.kind !== 'rec')) return;
   e.preventDefault();
   try { el.setPointerCapture(e.pointerId); } catch (x) {}
   if (!V0.open) vOpen();
@@ -882,7 +938,7 @@ function pttUp() {
   if (Date.now() - V0.t0 < 400 && V0.capturing) { V0.toggle = true; vUpdate(); flushRender(); return; }   // krátké ťuknutí = poslouchej, dokud znovu neťukneš
   vRelease(); flushRender();
 }
-function srShutdown() { clearTimeout(V0.idleT); clearTimeout(V0.finTimer); if (V0.rec) { const r = V0.rec; V0.rec = null; V0.running = false; try { r.abort(); } catch (e) {} } }
+function srShutdown() { clearTimeout(V0.idleT); clearTimeout(V0.finTimer); clearTimeout(V0.maxT); if (V0.rec) { const r = V0.rec; V0.rec = null; V0.running = false; try { r.abort(); } catch (e) {} } if (V0.mr && V0.mr.state === 'recording') { V0.discard = true; try { V0.mr.stop(); } catch (e) {} } if (V0.stream) { try { V0.stream.getTracks().forEach(t => t.stop()); } catch (e) {} V0.stream = null; } }
 document.addEventListener('pointerdown', e => { const el = e.target.closest && e.target.closest('[data-ptt]'); if (el) pttDown(el, e); });
 document.addEventListener('pointerup', pttUp);
 document.addEventListener('pointercancel', pttUp);
@@ -930,6 +986,15 @@ async function initVoice() {
     return;
   }
   if (window.SpeechRecognition || window.webkitSpeechRecognition) { V0.kind = 'sr'; if (S.view === 'game') render(); }
+  // na webu s přepisovou službou (Netlify + Groq) použij nahrávání – je spolehlivější, hlavně na iPhonu
+  if (!FILE && location.protocol === 'https:' && navigator.mediaDevices && navigator.mediaDevices.getUserMedia && window.MediaRecorder) {
+    try {
+      const ac = new AbortController(), t = setTimeout(() => ac.abort(), 5000);
+      const j = await fetch('/api/prepis', {cache: 'no-store', signal: ac.signal}).then(r => r.ok ? r.json() : null);
+      clearTimeout(t);
+      if (j && j.ok && j.key) { V0.kind = 'rec'; if (S.view === 'game') render(); }
+    } catch (e) {}
+  }
 }
 
 /* ---------- vykreslení ---------- */
