@@ -1512,7 +1512,7 @@ document.addEventListener('change', e => {
 /* ---------- sdílená kancelář (Supabase) ---------- */
 /* Hra = řádek v games + šipky v throws (seq = pořadí). Stav hry se vždy přepočítá přehráním šipek,
    takže všechny telefony vidí totéž. Zápisy jdou přes frontu: bez internetu se uloží a odešlou později. */
-const CLOUD_URL = '', CLOUD_KEY = '';   // po založení projektu se sem doplní adresa a publishable key
+const CLOUD_URL = 'https://wrlnaggoiuvrefvnevhv.supabase.co', CLOUD_KEY = 'sb_publishable_MKUwXHrm796Jl4h6U2Trug_9o0ybm7g';   // po založení projektu se sem doplní adresa a publishable key
 const CL = {on: false, ready: false, net: true, rt: false, busy: false, sb: null, ch: null, office: null, code: '', who: '', dev: '', gid: null, live: [], q: [], conflict: null, err: '', refreshT: null, need: new Set(), up: null};
 function clCfg() { const c = LS.get('.clcfg') || {}; return {url: CLOUD_URL || c.url || '', key: CLOUD_KEY || c.key || ''}; }
 const clAvail = () => !FILE && !(window.claude && typeof window.claude.use === 'function');
