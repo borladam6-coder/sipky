@@ -142,14 +142,18 @@ button:disabled{cursor:default}
 .k.un:disabled{text-decoration:none}
 /* terč */
 .gx{grid-template-columns:88px minmax(0,1fr) 88px}.gx .ghr{display:flex;justify-content:flex-end;margin:0}
-.bdp{margin:4px 16px calc(12px + env(safe-area-inset-bottom));display:flex;flex-direction:column;gap:8px;flex:none}
-.bdw{position:relative;width:min(100%,54dvh);margin:0 auto;touch-action:none;user-select:none;-webkit-user-select:none;-webkit-touch-callout:none}
+.bdp{margin:4px 0 calc(12px + env(safe-area-inset-bottom));display:flex;flex-direction:column;gap:8px;flex:none}
+.bdw{position:relative;width:min(calc(100% - 4px),60dvh);margin:0 auto;touch-action:none;user-select:none;-webkit-user-select:none;-webkit-touch-callout:none}
 .bdw svg{display:block;width:100%;height:auto;aspect-ratio:1/1;overflow:visible}
 .bdw text{font-family:var(--cd);font-weight:700;pointer-events:none}
-.bdp .kg{background:var(--ln);padding:2px}
+.bdp .kg{background:var(--ln);padding:2px;margin:0 16px}
 .bdtag{position:absolute;left:0;top:0;transform:translate(-50%,-100%);background:var(--acc);color:#0A0B0F;padding:7px 16px 6px;font:italic 800 36px/1 var(--cd);text-align:center;pointer-events:none;display:none;white-space:nowrap;z-index:4}
 .bdtag small{display:block;margin-top:3px;font:700 13px/1.1 var(--cd);letter-spacing:1.5px}
 .bdtag.on{display:block}.bdtag.bad small{color:#A3151D}
+/* kancelář */
+.resume.lv{background:var(--s2);color:var(--ink);border-bottom:1px solid var(--ln)}.resume.lv small{color:var(--mut)}
+.inp.sm{font:500 15px Barlow,system-ui,sans-serif;letter-spacing:0}
+.clst{font:700 12px var(--cd);letter-spacing:1.5px;color:var(--mut)}
 /* cricket */
 .csc{display:grid;gap:2px;background:var(--ln);padding:2px;margin:0 16px;flex:none}
 .csc>div{background:var(--s2);padding:8px 12px;display:flex;flex-direction:column;overflow:hidden}
@@ -261,7 +265,7 @@ button:disabled{cursor:default}
 'use strict';
 const $app = document.getElementById('app'), $sheet = document.getElementById('sheet'), $toast = document.getElementById('toast');
 const KEY = 'sipky.v1';
-const APP_VERSION = '1.5';
+const APP_VERSION = '1.6';
 const PALETTE = ['#FF6B3D','#2EC5F0','#B28CFF','#19C37D','#FF8FB1','#FFB547','#7CC4FF','#D9DCE1'];
 const TEAMC = ['#FF6B3D','#2EC5F0','#B28CFF','#19C37D'], TEAMN = ['A','B','C','D'];
 const CR = [20,19,18,17,16,15,25];
@@ -330,12 +334,12 @@ async function flush(id) {
 }
 const stripHist = g => { const {history, ...rest} = g; return rest; };
 const matchDoc = m => ({m: JSON.stringify(m), at: m.date});
-function persistPlayers() { LS.set('.p', S.players); rput('players', {list: S.players}); }
-function persistCurrent() { LS.set('.c', S.current); rput('current', {g: S.current ? JSON.stringify(stripHist(S.current)) : ''}); }
+function persistPlayers() { if (CL.on && !REPLAY) clPlayersSync(); LS.set(lk('.p'), S.players); rput('players', {list: S.players}); }
+function persistCurrent() { if (REPLAY) return; LS.set(lk('.c'), S.current); rput('current', {g: S.current ? JSON.stringify(stripHist(S.current)) : ''}); }
 function persistMeta() { LS.set('.meta', S.meta); rput('meta', JSON.parse(JSON.stringify(S.meta))); }
-function persistMatch(m) { LS.set('.m', S.matches); rput('m-' + m.id, matchDoc(m)); }
+function persistMatch(m) { if (CL.on) clMatchDone(m); LS.set(lk('.m'), S.matches); rput('m-' + m.id, matchDoc(m)); }
 function loadLocal() {
-  S.players = LS.get('.p') || []; S.matches = LS.get('.m') || []; S.current = LS.get('.c') || null; S.meta = LS.get('.meta') || {};
+  S.players = LS.get(lk('.p')) || []; S.matches = LS.get(lk('.m')) || []; S.current = LS.get(lk('.c')) || null; S.meta = LS.get('.meta') || {};
   if (S.current && !Array.isArray(S.current.history)) S.current.history = [];
 }
 async function initRemote() {
@@ -431,6 +435,8 @@ function throwDart(n, m) {
   const g = S.current;
   if (!g || g.finished) return;
   snapshot(g);
+  g.seq = (g.seq || 0) + 1;
+  if (g.cloud && !REPLAY) clThrow(g, n, m);
   const s = g.sides[g.cur], v = n * m, st = g.settings;
   if (g.type === 'x01') {
     let c = v;
@@ -477,6 +483,7 @@ function endTurn(g, o = {}) {
 }
 function finish(g, wi, info) {
   g.finished = true; g.winner = wi; g.info = info;
+  if (REPLAY) return;
   const m = {id: g.id, type: g.type, settings: g.settings, date: Date.now(), startedAt: g.startedAt, winner: wi, info, turns: g.turns,
     sides: g.sides.map(s => ({name: s.name, color: s.color, team: s.team, players: s.players, fin: finalVal(g, s)}))};
   S.matches.push(m); persistMatch(m);
@@ -576,12 +583,13 @@ const typeTitle = g => g.type === 'x01' ? String(g.settings.start) : g.type === 
 /* ---------- drobnosti ---------- */
 let ft = null, tt = null, wl = null;
 function setFlash(text, kind, ms = 1800) {
+  if (REPLAY) return;
   S.flash = {text, kind, until: Date.now() + ms};
   clearTimeout(ft);
   ft = setTimeout(() => { S.flash = null; if (S.view === 'game') render(); }, ms + 30);
 }
 function toast(t) { $toast.textContent = t; $toast.hidden = false; clearTimeout(tt); tt = setTimeout(() => { $toast.hidden = true; }, 2600); }
-function buzz() { try { navigator.vibrate && navigator.vibrate(12); } catch (e) {} }
+function buzz() { if (REPLAY) return; try { navigator.vibrate && navigator.vibrate(12); } catch (e) {} }
 async function wake() { try { if ('wakeLock' in navigator && !wl) { wl = await navigator.wakeLock.request('screen'); wl.addEventListener('release', () => { wl = null; }); } } catch (e) {} }
 function releaseWake() { try { wl && wl.release(); } catch (e) {} wl = null; }
 document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible' && S.view === 'game') wake(); });
@@ -664,11 +672,11 @@ function importData(txt) {
   });
   d.matches.forEach(m => {
     if (m && m.id && !mids.has(m.id) && Array.isArray(m.turns) && Array.isArray(m.sides) && ['x01', 'cricket', 'countup'].includes(m.type) && m.settings) {
-      S.matches.push(m); mids.add(m.id); rput('m-' + m.id, matchDoc(m)); nm++;
+      S.matches.push(m); mids.add(m.id); rput('m-' + m.id, matchDoc(m)); if (CL.on) clMatchDone(m); nm++;
     }
   });
   S.matches.sort((a, b) => a.date - b.date);
-  LS.set('.m', S.matches); persistPlayers();
+  LS.set(lk('.m'), S.matches); persistPlayers();
   toast('Načteno: ' + np + ' ' + plural(np, 'hráč', 'hráči', 'hráčů') + ', ' + nm + ' ' + plural(nm, 'zápas', 'zápasy', 'zápasů'));
   return true;
 }
@@ -1023,11 +1031,16 @@ const V = {};
 V.home = () => {
   const g = S.current;
   let resume = '';
-  if (g) {
+  if (g && !g.cloud) {
     const sum = g.sides.slice(0, 2).map(s => esc(s.name) + ' ' + sideVal(g, s)).join(' — ') + (g.sides.length > 2 ? ' …' : '');
     resume = `<button class="resume" data-a="go" data-v="game"><span><small>ROZEHRANÁ HRA · KOLO ${roundNo(g)}</small><b>${typeTitle(g)} · ${sum}</b></span>${IC.arrow}</button>`;
   }
   const games = [['x01', 'X01', '301 · 501 · 701 · Single / Double / Master Out'], ['cricket', 'CRICKET', 'Standard · Cut-Throat · No Score'], ['countup', 'COUNT UP', 'Sčítání bodů bez limitu kol']];
+  if (CL.on) {
+    const ago = t => { const m = Math.round((Date.now() - Date.parse(t)) / 60000); return !(m >= 0) ? '' : m < 1 ? 'TEĎ' : m < 60 ? 'PŘED ' + m + ' MIN' : dstr(Date.parse(t)); };
+    resume += CL.live.length ? `<h2 class="lbl" style="padding:18px 20px 8px">ROZEHRANÉ V KANCELÁŘI ${esc(CL.code)}</h2>` + CL.live.map(r => { const cur = g && g.id === r.id; return `<button class="resume${cur ? '' : ' lv'}" data-a="openLive" data-id="${esc(r.id)}"><span><small>${cur ? 'TVOJE OTEVŘENÁ HRA · ' : ''}${esc(r.created_by || '')}${r.created_by ? ' · ' : ''}${ago(r.created_at)}</small><b>${clLiveTitle(r)}</b></span>${IC.arrow}</button>`; }).join('') : '';
+    resume += `<p class="clst" style="padding:10px 20px 0">KANCELÁŘ ${esc(CL.code)} · <span id="clst">${clStatusTxt()}</span></p>`;
+  }
   return `<div class="app"><header class="hero"><span class="tag" style="background:var(--acc)">POČÍTADLO</span><h1>ŠIPKY</h1><p>Skóre pro sisalový terč</p></header>${resume}
   <main class="col" style="flex:1"><h2 class="lbl" style="padding:24px 20px 10px">NOVÁ HRA</h2>
   ${games.map((x, i) => `<button class="gmr" data-a="newGame" data-v="${x[0]}"><span class="n">0${i + 1}</span><span><b>${x[1]}</b><span>${x[2]}</span></span>${IC.chev}</button>`).join('')}
@@ -1112,11 +1125,12 @@ function roundStrip(g) {
 /* Zvenku double 1/5, triple 1/5, single 3/5; uprostřed tlačítko BULL, které se rozvětví na 25 / 50.
    Polož prst → políčko se rozsvítí a nad prstem je štítek; posuň → změní se; pusť → zapíše se. */
 const BORD = [20, 1, 18, 4, 13, 6, 10, 15, 2, 17, 3, 19, 7, 16, 8, 11, 14, 9, 12, 5];
-const BG = {RB: 24, R: 180, RIM: 192};
+const BG = {RB: 24, R: 180, RIM: 182, VB: 364};
 BG.rS = BG.RB + .6 * (BG.R - BG.RB); BG.rT = BG.RB + .8 * (BG.R - BG.RB);
 const BBR = [{m: 1, x: -64, y: -80, r: 42}, {m: 2, x: 64, y: -80, r: 42}];
 const BCOL = {red: '#C8323C', grn: '#1E8A4C', blk: '#141414', crm: '#E9DFC7', wire: '#8C8F94'};
 const BD = {hold: false, dirty: false, open: false, cur: null, pid: null};
+let REPLAY = false;
 S.inp = LS.get('.inp') === 'board' ? 'board' : 'num';
 function bdArc(r0, r1, d0, d1) {
   const P = (r, d) => { const a = d * Math.PI / 180; return (r * Math.cos(a)).toFixed(2) + ' ' + (r * Math.sin(a)).toFixed(2); };
@@ -1129,7 +1143,7 @@ function boardSvg(g) {
   let co = null;
   if (g.type === 'x01') { const s = g.sides[g.cur]; if (s.opened) { const c = checkout(s.rem, 3 - g.darts.length, g.settings.outMode); if (c && c[0] && c[0].n) co = c[0]; } }
   const rings = [[RB, rS, 1], [rS, rT, 3], [rT, R, 2]];
-  let o = `<circle r="${RIM}" fill="#050505" stroke="#2A2C33" stroke-width="1.5"/>`;
+  let o = `<circle r="${RIM}" fill="#050505"/>`;
   BORD.forEach((n, i) => {
     const mid = -90 + i * 18, ev = i % 2 === 0;
     let w = '';
@@ -1147,14 +1161,14 @@ function boardSvg(g) {
   const bullDim = g.type === 'cricket' && g.sides.every(s => s.marks[25] >= 3);
   o += `<g${bullDim ? ' opacity=".32"' : ''}><circle id="bbull" r="${RB}" fill="${BCOL.red}" data-f="${BCOL.red}" stroke="${co && co.n === 25 ? '#FFD400' : BCOL.grn}" stroke-width="4"/><text x="0" y="0" fill="#FFFFFF" font-size="12" text-anchor="middle" dominant-baseline="central">BULL</text></g>`;
   if (BD.open) {
-    o += `<circle r="${RIM + 4}" fill="#0A0B0F" opacity=".62"/>`;
+    o += `<circle r="${RIM}" fill="#0A0B0F" opacity=".62"/>`;
     BBR.forEach(b => {
       const c = b.m === 1 ? BCOL.grn : BCOL.red;
       o += `<line x1="0" y1="0" x2="${b.x}" y2="${b.y}" stroke="#FFD400" stroke-width="3"/><circle id="bb${b.m}" cx="${b.x}" cy="${b.y}" r="${b.r}" fill="${c}" data-f="${c}" stroke="#FFFFFF" stroke-width="2"/><text x="${b.x}" y="${b.y - 8}" fill="#FFFFFF" font-size="30" text-anchor="middle" dominant-baseline="central">${b.m === 1 ? 25 : 50}</text><text x="${b.x}" y="${b.y + 18}" fill="#FFFFFF" font-size="12" text-anchor="middle" dominant-baseline="central">${b.m === 1 ? 'BULL' : 'BULLSEYE'}</text>`;
     });
     o += `<circle r="${RB}" fill="${BCOL.red}" stroke="#FFD400" stroke-width="4"/><text x="0" y="0" fill="#FFFFFF" font-size="12" text-anchor="middle" dominant-baseline="central">BULL</text>`;
   }
-  return `<svg viewBox="-196 -196 392 392" role="img" aria-label="Terč – polož prst na políčko a pusť">${o}</svg>`;
+  return `<svg viewBox="${-BG.VB / 2} ${-BG.VB / 2} ${BG.VB} ${BG.VB}" role="img" aria-label="Terč – polož prst na políčko a pusť">${o}</svg>`;
 }
 function boardPad(g) {
   const n = V0.kind ? 3 : 2;
@@ -1203,7 +1217,7 @@ function bdEnd(commit) {
   if (BD.dirty) render();
 }
 function bdPt(e, w) {
-  const r = w.getBoundingClientRect(), sv = w.querySelector('svg'), q = sv ? sv.getBoundingClientRect() : r, k = 392 / Math.min(q.width, q.height);
+  const r = w.getBoundingClientRect(), sv = w.querySelector('svg'), q = sv ? sv.getBoundingClientRect() : r, k = BG.VB / Math.min(q.width, q.height);
   return {px: e.clientX - r.left, py: e.clientY - r.top, w: r.width, ux: (e.clientX - q.left - q.width / 2) * k, uy: (e.clientY - q.top - q.height / 2) * k};
 }
 document.addEventListener('pointerdown', e => {
@@ -1232,6 +1246,7 @@ V.game = () => {
   if (g.type === 'x01') { title = st.start + ' · ' + OUTL[st.outMode]; sub = (st.inMode === 'double' ? 'DOUBLE IN' : 'STRAIGHT IN') + ' · KOLO ' + r; }
   else if (g.type === 'cricket') { title = 'CRICKET · ' + CML[st.cricketMode]; sub = 'KOLO ' + r; }
   else { title = 'COUNT UP'; sub = 'KOLO ' + r + ' · BEZ LIMITU'; }
+  if (g.cloud && CL.on && (!CL.ready || !CL.net || CL.q.length)) sub += CL.ready && CL.net ? ' · ODESÍLÁM' : ' · BEZ PŘIPOJENÍ';
   return `<div class="app game"><header class="ghd gx"><button class="ib" data-a="go" data-v="home" aria-label="Zpět do menu">${IC.back}</button><div><h1>${title}</h1><span>${sub}</span></div><p class="ghr"><button class="ib" data-a="inp" aria-label="${S.inp === 'board' ? 'Zadávat čísly' : 'Zadávat terčem'}">${S.inp === 'board' ? IC.grid : IC.tgt}</button><button class="ib" data-a="gmenu" aria-label="Menu hry">${IC.menu}</button></p></header>
   <div class="gmid">${g.type === 'cricket' ? cricketBoard(g) : scoreBoard(g)}${infoBar(g)}${roundStrip(g)}</div>${keypad(g)}${S.flash && S.flash.until > Date.now() ? `<div class="flash ${S.flash.kind}" role="status">${esc(S.flash.text)}</div>` : ''}</div>`;
 };
@@ -1288,9 +1303,13 @@ V.profiles = () => {
     return `<div class="pl"><i style="background:${p.color}"></i><button class="main" data-a="stats" data-id="${p.id}"><b>${esc(p.name)}</b><small>${n} ${plural(n, 'zápas', 'zápasy', 'zápasů')}${x.games ? ' · Ø X01 ' + fmt(x.avg) : ''}</small></button><button class="ib" data-a="editp" data-id="${p.id}" aria-label="Upravit ${esc(p.name)}">${IC.edit}</button><button class="ib" data-a="stats" data-id="${p.id}" aria-label="Statistiky ${esc(p.name)}">${IC.chev}</button></div>`;
   }).join('');
   const syncTxt = {file: 'Data se ukládají do souboru v tomto počítači (složka %APPDATA%\\Sipky). Záloha do souboru je pojistka navíc.', cloud: 'Data se ukládají k tvému účtu – stejná na mobilu i na počítači. Záloha do souboru je pojistka navíc.', loading: 'Načítám data z účtu…', offline: 'Data z účtu teď nejdou načíst – ukládám do tohoto prohlížeče.', local: 'Data jsou uložená v tomto prohlížeči. Občas si udělej zálohu do souboru.'}[S.sync];
+  const hasLocal = CL.on && ((LS.get('.p') || []).length || (LS.get('.m') || []).length);
+  const kanc = !clAvail() ? '' : CL.on
+    ? `<section class="col g8" style="padding:0 20px"><h2 class="lbl">KANCELÁŘ ${esc(CL.code)}</h2><p class="note" style="font-size:14px;color:#D5D7DC">Hráči a hry se sdílejí se všemi telefony v kanceláři, zapisovat může kdokoli. Tento telefon: ${esc(CL.who)}.</p><span class="clst" id="clst">${clStatusTxt()}</span>${hasLocal ? '<div class="row2"><button class="btn" data-a="clUpOpen">NAHRÁT DATA</button><button class="btn" data-a="clLeaveAsk">ODPOJIT</button></div>' : '<button class="btn" data-a="clLeaveAsk">ODPOJIT KANCELÁŘ</button>'}</section>`
+    : `<section class="col g8" style="padding:0 20px"><h2 class="lbl">KANCELÁŘ</h2><p class="note" style="font-size:14px;color:#D5D7DC">Společní hráči a hry pro všechny telefony v kanceláři – každý může zapisovat a všichni vidí stav živě.</p><button class="btn acc" data-a="clOpen">PŘIPOJIT KANCELÁŘ</button></section>`;
   return `<div class="app"><header class="shdr"><h1>HRÁČI</h1><button class="btn acc" style="min-height:44px;font-style:italic;font-weight:800" data-a="newpOpen" data-ctx="">${IC.plus} NOVÝ HRÁČ</button></header>
   <main class="col g22" style="flex:1;padding-bottom:24px"><div style="border-top:1px solid var(--ln)">${rows || '<div class="empty"><b>ZATÍM ŽÁDNÍ HRÁČI</b><p class="note">Přidej první profil – stačí jméno.</p></div>'}</div>
-  <section class="col g8" style="padding:0 20px"><h2 class="lbl">ZÁLOHA DAT</h2><p class="note" style="font-size:14px;color:#D5D7DC">${syncTxt}</p><div class="row2"><button class="btn" data-a="exportOpen">${IC.dl} EXPORTOVAT</button><button class="btn" data-a="importOpen">${IC.ul} IMPORTOVAT</button></div><span class="lbl" style="font-size:12px;letter-spacing:1.5px">POSLEDNÍ ZÁLOHA ${S.meta.lastBackup ? dstr(S.meta.lastBackup) + ' ' + new Date(S.meta.lastBackup).getFullYear() : '– ZATÍM ŽÁDNÁ'}</span><span class="lbl" style="font-size:11px;letter-spacing:1.5px;opacity:.7">VERZE ${APP_VERSION}</span></section></main>${nav('profiles')}</div>`;
+  ${kanc}<section class="col g8" style="padding:0 20px"><h2 class="lbl">ZÁLOHA DAT</h2><p class="note" style="font-size:14px;color:#D5D7DC">${CL.on ? 'Data jsou v kanceláři na serveru a kopie v tomto telefonu. Záloha do souboru je pojistka navíc.' : syncTxt}</p><div class="row2"><button class="btn" data-a="exportOpen">${IC.dl} EXPORTOVAT</button><button class="btn" data-a="importOpen">${IC.ul} IMPORTOVAT</button></div><span class="lbl" style="font-size:12px;letter-spacing:1.5px">POSLEDNÍ ZÁLOHA ${S.meta.lastBackup ? dstr(S.meta.lastBackup) + ' ' + new Date(S.meta.lastBackup).getFullYear() : '– ZATÍM ŽÁDNÁ'}</span><span class="lbl" style="font-size:11px;letter-spacing:1.5px;opacity:.7">VERZE ${APP_VERSION}</span></section></main>${nav('profiles')}</div>`;
 };
 function sheetBody(sh) {
   const g = S.current;
@@ -1299,6 +1318,19 @@ function sheetBody(sh) {
       const s = g.sides[g.cur], L = ['S', 'D', 'T'], N = ['SINGLE', 'DOUBLE', 'TRIPLE'], C = ['var(--ink)', 'var(--dbl)', 'var(--tpl)'];
       const info = g.type === 'x01' ? 'ZBÝVÁ ' + s.rem : g.type === 'countup' ? 'SKÓRE ' + s.score : esc(curPlayer(g).name);
       return `<div class="shd"><h2>${sh.n}</h2><span><span>${g.darts.length + 1}. ŠIPKA</span><span style="color:var(--ink)">${info}</span></span></div><div class="opts">${[1, 2, 3].map(m => { const pv = preview(g, sh.n, m); return `<button class="opt" data-a="mult" data-n="${sh.n}" data-m="${m}"><span class="L" style="background:${C[m - 1]}">${L[m - 1]}</span><span class="nm">${N[m - 1]} ${sh.n}</span><span class="rv"><b>${sh.n * m}</b><small class="${pv.c || ''}">${pv.t}</small></span></button>`; }).join('')}</div><button class="ghost" data-a="closeSheet">ZRUŠIT</button>`;
+    }
+    case 'cloud': {
+      const c = LS.get('.clcfg') || {}, need = !CLOUD_URL, val = (k, d) => esc(sh[k] != null ? sh[k] : d || '');
+      return `<h2 class="sh2">KANCELÁŘ</h2><div class="col g8">${need ? `<label class="lbl" for="clurl">ADRESA PROJEKTU SUPABASE</label><input class="inp sm" id="clurl" placeholder="https://xxxx.supabase.co" value="${val('url', c.url)}" autocomplete="off" autocapitalize="off" spellcheck="false"><label class="lbl" for="clkey">PUBLISHABLE KEY</label><input class="inp sm" id="clkey" placeholder="sb_publishable_…" value="${val('key', c.key)}" autocomplete="off" autocapitalize="off" spellcheck="false">` : ''}<label class="lbl" for="clcode">KÓD KANCELÁŘE</label><input class="inp" id="clcode" maxlength="12" placeholder="např. TK4G" value="${val('code')}" autocomplete="off" autocapitalize="characters" spellcheck="false"><label class="lbl" for="clwho">JMÉNO TOHOTO TELEFONU</label><input class="inp" id="clwho" maxlength="20" placeholder="např. Adam" value="${val('who')}" autocomplete="off">${sh.err ? `<p class="note" role="alert" style="color:#FF7A7A;font-size:14px">${esc(sh.err)}</p>` : ''}<div class="row2"><button class="btn" data-a="clCreate"${sh.busy ? ' disabled' : ''}>ZALOŽIT NOVOU</button><button class="btn acc" data-a="clJoin"${sh.busy ? ' disabled' : ''}>${sh.busy ? 'PŘIPOJUJU…' : 'PŘIPOJIT'}</button></div><button class="ghost" data-a="closeSheet">ZRUŠIT</button></div>`;
+    }
+    case 'clUp': {
+      const lp = (LS.get('.p') || []).length, lm = (LS.get('.m') || []).length;
+      return `<h2 class="sh2">NAHRÁT DATA DO KANCELÁŘE?</h2><p class="note" style="font-size:15px;color:#D5D7DC">V tomto telefonu ${plural(lp, 'je', 'jsou', 'je')} ${lp} ${plural(lp, 'hráč', 'hráči', 'hráčů')} a ${lm} ${plural(lm, 'zápas', 'zápasy', 'zápasů')}. Hráči se stejným jménem se spojí s hráči kanceláře, zápasy se přidají do společných statistik.</p><div class="row2"><button class="btn" data-a="clUpNo">NE</button><button class="btn acc" data-a="clUpYes">NAHRÁT</button></div>`;
+    }
+    case 'clConf': {
+      const c = CL.conflict;
+      if (!c) return '';
+      return `<h2 class="sh2">TUHLE ŠIPKU UŽ NĚKDO ZAPSAL</h2><p class="note" style="font-size:15px;color:#D5D7DC">${esc(c.srv.who || 'Jiný telefon')} zapsal ${clLbl(c.srv)} jako ${c.op.seq}. šipku hry. Ty jsi zapsal ${clLbl(c.op)}.</p><div class="opts"><button class="mi" data-a="clKeep">ZAPSAT MŮJ HOD ${clLbl(c.op)} JAKO DALŠÍ</button><button class="mi red" data-a="clDrop">ZAHODIT MŮJ HOD – BYL TO TENTÝŽ</button></div>`;
     }
     case 'gmenu':
       return `<h2 class="sh2">MENU HRY</h2><div class="opts"><button class="mi" data-a="closeSheet">POKRAČOVAT</button>${g.type === 'countup' ? '<button class="mi" data-a="endCountup">UKONČIT A VYHODNOTIT</button>' : ''}<button class="mi" data-a="go" data-v="home">DO MENU (HRA ZŮSTANE ROZEHRANÁ)</button><button class="mi red" data-a="askDiscard">ZAHODIT HRU</button></div>`;
@@ -1345,9 +1377,20 @@ const A = {
     if (ds.v === 'game') wake(); else { releaseWake(); srShutdown(); }
     window.scrollTo(0, 0);
   },
-  closeSheet() { S.sheet = null; },
+  closeSheet() { if (S.sheet && S.sheet.k === 'clConf') return; S.sheet = null; },
+  clOpen() { S.sheet = {k: 'cloud', who: CL.who || ''}; },
+  clJoin() { clConnect(false); },
+  clCreate() { clConnect(true); },
+  clUpOpen() { S.sheet = {k: 'clUp'}; },
+  clUpYes() { S.sheet = null; clUpload(); },
+  clUpNo() { S.sheet = null; LS.set('.c_up', CL.office); },
+  clLeaveAsk() { const n = CL.q.length; S.sheet = {k: 'confirm', title: 'ODPOJIT KANCELÁŘ?', text: 'Telefon přestane sdílet hry. Data kanceláře zůstanou na serveru a v telefonu se vrátí tvoje původní data.' + (n ? ' Pozor: ' + n + ' ' + plural(n, 'zápis se ještě neodeslal', 'zápisy se ještě neodeslaly', 'zápisů se ještě neodeslalo') + ' a ztratí se.' : ''), ok: 'clLeave', okl: 'ODPOJIT'}; },
+  clLeave() { clDisconnect(); S.sheet = null; toast('Kancelář odpojena'); },
+  clKeep() { clResolve(true); },
+  clDrop() { clResolve(false); },
+  openLive(ds) { clOpenGame(ds.id); },
   newGame(ds) {
-    if (S.current) { S.sheet = {k: 'confirm', title: 'NOVÁ HRA?', text: 'Rozehraná hra se zahodí a nezapočítá do statistik.', ok: 'newGameForce', id: ds.v, okl: 'NOVÁ HRA'}; return; }
+    if (S.current && !S.current.cloud) { S.sheet = {k: 'confirm', title: 'NOVÁ HRA?', text: 'Rozehraná hra se zahodí a nezapočítá do statistik.', ok: 'newGameForce', id: ds.v, okl: 'NOVÁ HRA'}; return; }
     S.draft = newDraft(ds.v); S.view = 'setup'; window.scrollTo(0, 0);
   },
   newGameForce(ds) { S.current = null; persistCurrent(); S.sheet = null; S.draft = newDraft(ds.id); S.view = 'setup'; },
@@ -1377,17 +1420,17 @@ const A = {
     if (!canStart(d)) return;
     S.meta.lastDraft = JSON.parse(JSON.stringify(d)); persistMeta();
     const settings = d.type === 'x01' ? {start: d.start, inMode: d.inMode, outMode: d.outMode} : d.type === 'cricket' ? {cricketMode: d.cricketMode} : {};
-    S.current = newGame(d.type, settings, buildSides(d)); persistCurrent();
+    S.current = newGame(d.type, settings, buildSides(d)); if (CL.on) clNewGame(S.current); persistCurrent();
     S.view = 'game'; S.flash = null; wake(); window.scrollTo(0, 0);
   },
   num(ds) { S.sheet = {k: 'mult', n: +ds.n}; },
   mult(ds) { S.sheet = null; throwDart(+ds.n, +ds.m); },
   dart(ds) { throwDart(+ds.n, +ds.m); },
-  undo() { BD.open = false; undo(); },
+  undo() { BD.open = false; if (S.current && S.current.cloud && CL.on) clUndo(); else undo(); },
   inp() { S.inp = S.inp === 'board' ? 'num' : 'board'; BD.open = false; LS.set('.inp', S.inp); toast(S.inp === 'board' ? 'ZADÁVÁNÍ TERČEM' : 'ZADÁVÁNÍ ČÍSLY'); },
   gmenu() { S.sheet = {k: 'gmenu'}; },
-  askDiscard() { S.sheet = {k: 'confirm', title: 'ZAHODIT HRU?', text: 'Rozehraná hra se smaže a nezapočítá do statistik.', ok: 'discard', okl: 'ZAHODIT'}; },
-  discard() { S.current = null; persistCurrent(); S.sheet = null; S.view = 'home'; releaseWake(); srShutdown(); },
+  askDiscard() { S.sheet = {k: 'confirm', title: 'ZAHODIT HRU?', text: S.current && S.current.cloud ? 'Hra se zahodí na všech telefonech v kanceláři a nezapočítá do statistik.' : 'Rozehraná hra se smaže a nezapočítá do statistik.', ok: 'discard', okl: 'ZAHODIT'}; },
+  discard() { if (S.current && S.current.cloud && CL.on) clVoid(S.current); S.current = null; persistCurrent(); S.sheet = null; S.view = 'home'; releaseWake(); srShutdown(); },
   endCountup() {
     const g = S.current;
     if (!g) return;
@@ -1401,7 +1444,7 @@ const A = {
     if (!r) return;
     const base = r.sides.map(s => ({name: s.name, color: s.color, team: s.team, players: s.players}));
     if (base.length > 1) base.push(base.shift());
-    S.current = newGame(r.type, r.settings, base); persistCurrent();
+    S.current = newGame(r.type, r.settings, base); if (CL.on) clNewGame(S.current); persistCurrent();
     S.result = null; S.view = 'game'; wake();
   },
   stats(ds) { S.stats.pid = ds.id; S.view = 'stats'; S.sheet = null; window.scrollTo(0, 0); },
@@ -1466,10 +1509,303 @@ document.addEventListener('change', e => {
   r.readAsText(e.target.files[0]);
 });
 
+/* ---------- sdílená kancelář (Supabase) ---------- */
+/* Hra = řádek v games + šipky v throws (seq = pořadí). Stav hry se vždy přepočítá přehráním šipek,
+   takže všechny telefony vidí totéž. Zápisy jdou přes frontu: bez internetu se uloží a odešlou později. */
+const CLOUD_URL = '', CLOUD_KEY = '';   // po založení projektu se sem doplní adresa a publishable key
+const CL = {on: false, ready: false, net: true, rt: false, busy: false, sb: null, ch: null, office: null, code: '', who: '', dev: '', gid: null, live: [], q: [], conflict: null, err: '', refreshT: null, need: new Set(), up: null};
+function clCfg() { const c = LS.get('.clcfg') || {}; return {url: CLOUD_URL || c.url || '', key: CLOUD_KEY || c.key || ''}; }
+const clAvail = () => !FILE && !(window.claude && typeof window.claude.use === 'function');
+const lk = k => CL.on ? '.c_' + k.slice(1) : k;
+function clSaveQ() { LS.set('.c_q', CL.q); }
+function clSaveState() { LS.set('.cl', CL.on ? {code: CL.code, office: CL.office, who: CL.who, gid: CL.gid} : null); }
+const clIsNet = e => !e || !e.code || /fetch|network|load failed|timeout/i.test(e.message || '');
+const clLbl = t => dartLbl({n: t.n, m: t.m});
+function clLib() {
+  if (window.supabase && window.supabase.createClient) return Promise.resolve();
+  return new Promise((res, rej) => { const s = document.createElement('script'); s.src = 'supabase.js'; s.onload = () => res(); s.onerror = () => rej({message: 'Load failed'}); document.head.appendChild(s); });
+}
+async function clClient() {
+  if (CL.sb) return CL.sb;
+  const cfg = clCfg();
+  if (!cfg.url || !cfg.key) throw {code: 'cfg', message: 'Chybí adresa nebo klíč projektu'};
+  await clLib();
+  CL.sb = window.supabase.createClient(cfg.url, cfg.key, {auth: {storageKey: 'sipky-auth', persistSession: true, autoRefreshToken: true}});
+  return CL.sb;
+}
+async function clAuth() {
+  const sb = await clClient();
+  const {data} = await sb.auth.getSession();
+  if (data && data.session) return data.session.user.id;
+  const r = await sb.auth.signInAnonymously();
+  if (r.error) throw r.error;
+  return r.data.user.id;
+}
+function clStatus() { const el = document.getElementById('clst'); if (el) el.textContent = clStatusTxt(); }
+function clStatusTxt() {
+  if (!CL.on) return '';
+  const n = CL.q.length;
+  return (CL.ready && CL.net ? 'ONLINE' : 'BEZ PŘIPOJENÍ') + (n ? ' · ČEKÁ ' + n + ' ' + plural(n, 'ZÁPIS', 'ZÁPISY', 'ZÁPISŮ') : '');
+}
+/* --- spuštění a připojení --- */
+async function clStart() {
+  if (!CL.on || CL.ready || CL.starting) return;
+  CL.starting = true;
+  try {
+    await clAuth();
+    const {data, error} = await CL.sb.rpc('join_office', {p_code: CL.code, p_device: CL.who});
+    if (error) throw error;
+    CL.office = data; CL.net = true; clSaveState();
+    await Promise.all([clLoadPlayers(), clLoadMatches(), clLoadLive()]);
+    clSubscribe(); CL.ready = true;
+    if (CL.gid) await clRefreshGame(CL.gid);
+    clFlush();
+  } catch (e) {
+    CL.net = !clIsNet(e);
+    if (!clIsNet(e)) toast(e.message === 'office_not_found' ? 'Kancelář ' + CL.code + ' neexistuje' : 'Připojení ke kanceláři selhalo');
+  } finally { CL.starting = false; clStatus(); render(); }
+}
+async function clConnect(create) {
+  const v = id => (document.getElementById(id) || {}).value || '';
+  const code = v('clcode').trim().toUpperCase(), who = v('clwho').trim().slice(0, 20);
+  if (!clCfg().url || document.getElementById('clurl')) {
+    const url = v('clurl').trim().replace(/\/+$/, ''), key = v('clkey').trim();
+    if (!/^https:\/\/.+/.test(url) || !key) { S.sheet.err = 'Vyplň adresu projektu a klíč.'; return; }
+    LS.set('.clcfg', {url, key}); CL.sb = null;
+  }
+  if (!/^[A-Z0-9]{4,12}$/.test(code)) { S.sheet.err = 'Kód: 4–12 písmen nebo číslic, bez diakritiky.'; return; }
+  if (!who) { S.sheet.err = 'Napiš jméno tohoto telefonu (např. své jméno).'; return; }
+  S.sheet.err = ''; S.sheet.busy = true; render();
+  try {
+    await clAuth();
+    const {data, error} = await CL.sb.rpc(create ? 'create_office' : 'join_office', {p_code: code, p_device: who});
+    if (error) throw error;
+    const hadLocal = (LS.get('.p') || []).length + (LS.get('.m') || []).length;
+    Object.assign(CL, {on: true, office: data, code, who, ready: false, net: true, gid: null});
+    clSaveState();
+    S.players = []; S.matches = []; S.current = null; S.result = null;
+    await clStart();
+    S.sheet = hadLocal && LS.get('.c_up') !== data ? {k: 'clUp'} : null;
+    toast((create ? 'Kancelář založena: ' : 'Připojeno ke kanceláři ') + code);
+  } catch (e) {
+    S.sheet = Object.assign(S.sheet || {k: 'cloud'}, {busy: false, err: e.message === 'office_exists' ? 'Kancelář s tímhle kódem už existuje – zvol Připojit.' : e.message === 'office_not_found' ? 'Kancelář s tímhle kódem neexistuje – zkontroluj kód, nebo ji založ.' : /anonymous/i.test(e.message || '') ? 'V Supabase není zapnuté anonymní přihlášení (Authentication → Sign In / Providers).' : clIsNet(e) ? 'Nejde se spojit se serverem – zkontroluj internet, adresu a klíč.' : 'Chyba: ' + (e.message || e.code)});
+  }
+  render();
+}
+function clDisconnect() {
+  try { if (CL.ch && CL.sb) CL.sb.removeChannel(CL.ch); } catch (e) {}
+  Object.assign(CL, {on: false, ready: false, ch: null, office: null, code: '', gid: null, live: [], conflict: null});
+  LS.set('.c_q', []); CL.q = []; clSaveState(); loadLocal();
+}
+/* --- čtení ze serveru --- */
+async function clLoadPlayers() {
+  const {data, error} = await CL.sb.from('players').select('id,name,color').eq('office_id', CL.office).eq('archived', false).order('id');
+  if (error) throw error;
+  if (CL.q.some(o => o.k === 'p')) return;
+  S.players = data.map(p => ({id: p.id, name: p.name, color: p.color || PALETTE[0]}));
+  CL.pmap = Object.fromEntries(S.players.map(p => [p.id, p.name + '|' + p.color]));
+  LS.set('.c_p', S.players);
+}
+async function clLoadMatches() {
+  const {data, error} = await CL.sb.from('games').select('id,result').eq('office_id', CL.office).eq('status', 'done').order('created_at');
+  if (error) throw error;
+  const ms = data.map(r => r.result).filter(m => m && m.id && m.sides);
+  CL.q.filter(o => o.k === 'd').forEach(o => { if (!ms.some(m => m.id === o.row.id)) ms.push(o.row.result); });
+  S.matches = ms; LS.set('.c_m', S.matches);
+}
+async function clLoadLive() {
+  const {data, error} = await CL.sb.from('games').select('id,type,settings,sides,created_by,created_at').eq('office_id', CL.office).eq('status', 'live').order('created_at', {ascending: false});
+  if (error) throw error;
+  CL.live = data; LS.set('.c_live', CL.live);
+}
+async function clFetchGame(gid) {
+  const [a, b] = await Promise.all([
+    CL.sb.from('games').select('*').eq('id', gid).maybeSingle(),
+    CL.sb.from('throws').select('seq,n,m,who,device').eq('game_id', gid).eq('undone', false).order('seq')]);
+  if (a.error) throw a.error;
+  if (b.error) throw b.error;
+  return {row: a.data, th: b.data};
+}
+function clReplay(row, th) {
+  const keep = S.current, g = newGame(row.type, row.settings, row.sides);
+  g.id = row.id; g.cloud = true; g.startedAt = Date.parse(row.created_at) || g.startedAt;
+  S.current = g; REPLAY = true;
+  try { th.forEach(t => throwDart(+t.n, +t.m)); } finally { REPLAY = false; S.current = keep; }
+  return g;
+}
+/* Stav hry = šipky ze serveru + to, co ještě čeká ve frontě. */
+function clCompose(gid, srv) {
+  const undo = new Set(CL.q.filter(o => o.k === 'u' && o.gid === gid).map(o => o.seq));
+  const mine = CL.q.filter(o => o.k === 't' && o.gid === gid).map(o => ({seq: o.seq, n: o.n, m: o.m}));
+  const all = srv.filter(t => !undo.has(t.seq) && !mine.some(x => x.seq === t.seq)).concat(mine);
+  return all.sort((a, b) => a.seq - b.seq);
+}
+async function clRefreshGame(gid, open) {
+  let r;
+  try { r = await clFetchGame(gid); } catch (e) { CL.net = !clIsNet(e); clStatus(); return; }
+  if (!r.row) { if (open) toast('Hra už neexistuje'); return; }
+  if (CL.q.some(o => o.gid === gid && o.k !== 'u') && !open && CL.busy) { CL.need.add(gid); return; }
+  const viewing = open || (S.current && S.current.id === gid);
+  if (!viewing) return;
+  if (r.row.status === 'void') { if (S.current && S.current.id === gid) { S.current = null; CL.gid = null; clSaveState(); persistCurrent(); if (S.view === 'game') { S.view = 'home'; toast('Hru zahodil jiný telefon'); } } render(); return; }
+  const g = clReplay(r.row, clCompose(gid, r.th));
+  if (r.row.status === 'done' || g.finished) {
+    if (!g.finished && r.row.result) { g.finished = true; g.winner = r.row.result.winner; g.info = r.row.result.info; }
+    if (S.current && S.current.id === gid || open) { S.result = stripHist(g); S.current = null; CL.gid = null; clSaveState(); persistCurrent(); if (S.view === 'game' || open) { S.view = 'result'; S.sheet = null; } }
+    render(); return;
+  }
+  S.current = g; CL.gid = gid; clSaveState(); persistCurrent();
+  if (open) { S.view = 'game'; S.sheet = null; S.flash = null; wake(); }
+  render();
+}
+function clSoon(gid) {
+  CL.need.add(gid);
+  clearTimeout(CL.refreshT);
+  CL.refreshT = setTimeout(() => { const ids = [...CL.need]; CL.need.clear(); ids.forEach(id => clRefreshGame(id)); }, 150);
+}
+function clSubscribe() {
+  if (CL.ch) return;
+  const f = {schema: 'public', filter: 'office_id=eq.' + CL.office};
+  CL.ch = CL.sb.channel('kancl-' + CL.office)
+    .on('postgres_changes', Object.assign({event: '*', table: 'throws'}, f), p => { const t = p.new || p.old || {}; if (S.current && S.current.id === t.game_id && !CL.busy) clSoon(t.game_id); })
+    .on('postgres_changes', Object.assign({event: '*', table: 'games'}, f), p => {
+      const gm = p.new || {};
+      clLoadLive().then(render, () => {});
+      if (gm.status === 'done') clLoadMatches().then(render, () => {});
+      if (S.current && S.current.id === gm.id && gm.status !== 'live') clSoon(gm.id);
+    })
+    .on('postgres_changes', Object.assign({event: '*', table: 'players'}, f), () => { clLoadPlayers().then(render, () => {}); })
+    .subscribe(st => { CL.rt = st === 'SUBSCRIBED'; });
+}
+/* --- zápisy přes frontu --- */
+function clPush(op) { CL.q.push(op); clSaveQ(); clStatus(); clFlush(); }
+async function clFlush() {
+  if (CL.busy || !CL.on || !CL.ready || CL.conflict) return;
+  CL.busy = true;
+  let touched = new Set(), offApp = 0;
+  try {
+    while (CL.q.length && !CL.conflict) {
+      const op = CL.q[0], r = await clSend(op);
+      if (r === 'net') { CL.net = false; CL.q.forEach(o => { if (o.k === 't') o.off = true; }); clSaveQ(); break; }
+      if (r === 'conflict') break;
+      if (r === 'again') { offApp++; continue; }
+      CL.q.shift(); clSaveQ(); CL.net = true;
+      if (op.gid) touched.add(op.gid);
+      if (r === 'refresh' && op.gid) touched.add(op.gid);
+    }
+  } finally { CL.busy = false; clStatus(); }
+  if (offApp) toast('Hody z doby bez internetu doodeslány – za hody z jiného telefonu');
+  if (!CL.q.length) { [...touched, ...CL.need].forEach(id => { if (S.current && S.current.id === id) clRefreshGame(id); }); CL.need.clear(); clLoadPlayers().then(render, () => {}); }
+  if (CL.conflict) { S.sheet = {k: 'clConf'}; render(); }
+}
+async function clSend(op) {
+  const sb = CL.sb;
+  let res;
+  try {
+    if (op.k === 't') res = await sb.from('throws').insert({game_id: op.gid, office_id: CL.office, seq: op.seq, n: op.n, m: op.m, device: CL.dev, who: CL.who});
+    else if (op.k === 'g') res = await sb.from('games').insert(Object.assign({office_id: CL.office}, op.row));
+    else if (op.k === 'd') res = await sb.from('games').upsert(Object.assign({office_id: CL.office, updated_at: new Date().toISOString()}, op.row));
+    else if (op.k === 'v') res = await sb.from('games').update({status: 'void', updated_at: new Date().toISOString()}).eq('id', op.gid);
+    else if (op.k === 'p') res = await sb.from('players').upsert(op.rows.map(p => Object.assign({office_id: CL.office, updated_at: new Date().toISOString()}, p)));
+    else if (op.k === 'u') {
+      res = await sb.rpc('undo_last', {p_game: op.gid, p_seq: op.seq, p_who: CL.who});
+      if (!res.error && res.data === false) { toast('Zpět se neprovedl – mezitím přibyl jiný hod'); return 'refresh'; }
+    } else return 'ok';
+  } catch (e) { return 'net'; }
+  const e = res && res.error;
+  if (!e) return 'ok';
+  if (clIsNet(e)) return 'net';
+  if (op.k === 'g' && e.code === '23505') return 'ok';
+  if (op.k === 't' && e.code === '23505') return clOnConflict(op);
+  if (/JWT|401|PGRST30/.test(e.code + ' ' + e.message)) { try { await clAuth(); } catch (x) {} return 'net'; }
+  toast(op.k === 't' ? 'Hod se nezapsal – hra už skončila' : 'Zápis do kanceláře se nepovedl');
+  return 'drop';
+}
+async function clOnConflict(op) {
+  let th;
+  try { th = (await clFetchGame(op.gid)).th; } catch (e) { return 'net'; }
+  const srv = th.find(t => t.seq === op.seq);
+  if (!srv) return 'net';
+  if (srv.device === CL.dev && srv.n === op.n && srv.m === op.m) return 'ok';
+  if (op.off) { clRenumber(op.gid, op.seq, Math.max(...th.map(t => t.seq)) + 1); return 'again'; }
+  CL.conflict = {op, srv};
+  return 'conflict';
+}
+function clRenumber(gid, from, to) { let s = to; CL.q.forEach(o => { if (o.k === 't' && o.gid === gid && o.seq >= from) o.seq = s++; }); clSaveQ(); }
+async function clResolve(keep) {
+  const c = CL.conflict; if (!c) return;
+  if (keep) { let th = []; try { th = (await clFetchGame(c.op.gid)).th; } catch (e) {} clRenumber(c.op.gid, c.op.seq, Math.max(c.op.seq, ...th.map(t => t.seq)) + 1); }
+  else { CL.q.splice(CL.q.indexOf(c.op), 1); clRenumber(c.op.gid, c.op.seq, c.op.seq); }
+  CL.conflict = null; S.sheet = null; clSaveQ();
+  await clRefreshGame(c.op.gid); clFlush();
+}
+/* --- napojení na herní akce --- */
+const clGameRow = g => ({id: g.id, type: g.type, settings: g.settings, sides: g.sides.map(s => ({name: s.name, color: s.color, team: s.team, players: s.players})), created_by: CL.who});
+function clNewGame(g) { g.cloud = true; g.seq = 0; CL.gid = g.id; clSaveState(); CL.live.unshift(Object.assign(clGameRow(g), {created_at: new Date().toISOString()})); clPush({k: 'g', gid: g.id, row: clGameRow(g)}); }
+function clThrow(g, n, m) { clPush({k: 't', gid: g.id, seq: g.seq, n, m, off: !(CL.ready && CL.net), t: Date.now()}); }
+function clUndo() {
+  const g = S.current;
+  if (!g || !g.history.length) return;
+  const last = g.seq, i = CL.q.findIndex(o => o.k === 't' && o.gid === g.id && o.seq === last);
+  undo();
+  if (i >= 0) { CL.q.splice(i, 1); clSaveQ(); clStatus(); } else clPush({k: 'u', gid: g.id, seq: last});
+}
+function clMatchDone(m) {
+  const row = {id: m.id, type: m.type, settings: m.settings, sides: m.sides.map(s => ({name: s.name, color: s.color, team: s.team, players: s.players})), status: 'done', result: m, created_by: CL.who};
+  CL.live = CL.live.filter(x => x.id !== m.id); if (CL.gid === m.id) { CL.gid = null; clSaveState(); }
+  clPush({k: 'd', gid: m.id, row});
+}
+function clVoid(g) { CL.live = CL.live.filter(x => x.id !== g.id); CL.gid = null; clSaveState(); clPush({k: 'v', gid: g.id}); }
+function clPlayersSync() {
+  const prev = CL.pmap || {}, now = {}, rows = [];
+  S.players.forEach(p => { now[p.id] = p.name + '|' + p.color; if (prev[p.id] !== now[p.id]) rows.push({id: p.id, name: p.name, color: p.color, archived: false}); });
+  Object.keys(prev).forEach(id => { if (!now[id]) { const [name, color] = prev[id].split('|'); rows.push({id, name, color, archived: true}); } });
+  CL.pmap = now;
+  if (rows.length) clPush({k: 'p', rows});
+}
+function clUpload() {
+  const lp = LS.get('.p') || [], lm = LS.get('.m') || [], byName = new Map(S.players.map(p => [p.name.toLowerCase(), p.id])), map = {};
+  lp.forEach(p => { const ex = byName.get(p.name.toLowerCase()); if (ex) map[p.id] = ex; else { map[p.id] = p.id; S.players.push({id: p.id, name: p.name, color: p.color}); byName.set(p.name.toLowerCase(), p.id); } });
+  persistPlayers();
+  const fix = id => map[id] || id;
+  let n = 0;
+  lm.forEach(m0 => {
+    if (S.matches.some(x => x.id === m0.id)) return;
+    const m = JSON.parse(JSON.stringify(m0));
+    m.sides.forEach(s => s.players.forEach(p => { p.id = fix(p.id); }));
+    m.turns.forEach(t => { t.p = fix(t.p); });
+    S.matches.push(m); clMatchDone(m); n++;
+  });
+  LS.set('.c_m', S.matches); LS.set('.c_up', CL.office);
+  toast('Nahráno: ' + lp.length + ' ' + plural(lp.length, 'hráč', 'hráči', 'hráčů') + ', ' + n + ' ' + plural(n, 'zápas', 'zápasy', 'zápasů'));
+}
+function clOpenGame(gid) {
+  const row = CL.live.find(x => x.id === gid);
+  if (S.current && S.current.id === gid) { S.view = 'game'; wake(); return; }
+  if (row && !CL.ready) { const cached = LS.get('.c_c'); S.current = cached && cached.id === gid ? cached : clReplay(Object.assign({created_at: row.created_at}, row), clCompose(gid, [])); if (!Array.isArray(S.current.history)) S.current.history = []; CL.gid = gid; clSaveState(); S.view = 'game'; return; }
+  toast('Načítám hru…'); clRefreshGame(gid, true);
+}
+function clLiveTitle(r) { return (r.type === 'x01' ? r.settings.start : r.type === 'cricket' ? 'CRICKET' : 'COUNT UP') + ' · ' + r.sides.map(s => esc(s.name)).join(' — '); }
+setInterval(() => {
+  if (!CL.on) return;
+  if (!CL.ready) { clStart(); return; }
+  if (CL.q.length) clFlush();
+  if (!CL.rt && document.visibilityState === 'visible') { if (S.current && S.current.cloud && S.view === 'game' && !CL.q.length) clRefreshGame(S.current.id); if (S.view === 'home') clLoadLive().then(render, () => {}); }
+}, 5000);
+window.__cl = {CL, S, clRefreshGame, clFlush};
+window.addEventListener('online', () => { if (CL.on) { CL.net = true; CL.ready ? clFlush() : clStart(); } });
+document.addEventListener('visibilitychange', () => { if (CL.on && document.visibilityState === 'visible') { if (!CL.ready) clStart(); else { clFlush(); if (S.current && S.current.cloud && !CL.q.length) clRefreshGame(S.current.id); clLoadLive().then(render, () => {}); } } });
+
+(function clInit() {
+  let d = LS.get('.c_dev'); if (!d) { d = uid(); LS.set('.c_dev', d); } CL.dev = d;
+  const st = LS.get('.cl');
+  if (st && st.office && clAvail()) { Object.assign(CL, {on: true, code: st.code, office: st.office, who: st.who, gid: st.gid || null}); CL.q = LS.get('.c_q') || []; CL.live = LS.get('.c_live') || []; CL.pmap = Object.fromEntries((LS.get('.c_p') || []).map(p => [p.id, p.name + '|' + p.color])); }
+})();
 loadLocal();
 if (FILE) S.sync = 'file';
 render();
-if (!FILE) initRemote();
+if (!FILE && !CL.on) initRemote();
+if (CL.on) clStart();
 initVoice();
 })();
 </script>

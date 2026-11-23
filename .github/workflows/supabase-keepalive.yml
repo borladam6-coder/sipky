@@ -1,0 +1,36 @@
+# Supabase na bezplatném tarifu uspí projekt po týdnu bez práce s databází.
+# Tenhle automat každé 3 dny zapíše čas do tabulky heartbeat, takže se projekt neuspí.
+name: Supabase – udržet naživu
+
+on:
+  schedule:
+    - cron: '23 4 */3 * *'   # každé 3 dny ve 4:23 UTC
+  workflow_dispatch:          # ruční spuštění: Actions → Supabase – udržet naživu → Run workflow
+
+permissions:
+  contents: read
+  actions: write              # aby šel automat sám znovu povolit (GitHub vypíná plánované úlohy po 60 dnech bez změn v repozitáři)
+
+jobs:
+  heartbeat:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Zapsat heartbeat do Supabase
+        env:
+          SUPABASE_URL: ${{ vars.SUPABASE_URL }}
+          SUPABASE_KEY: ${{ vars.SUPABASE_KEY }}
+        run: |
+          URL="${SUPABASE_URL:-$(grep -oP "CLOUD_URL = '\K[^']+" index.html || true)}"
+          KEY="${SUPABASE_KEY:-$(grep -oP "CLOUD_KEY = '\K[^']+" index.html || true)}"
+          if [ -z "$URL" ] || [ -z "$KEY" ]; then
+            echo "Adresa nebo klíč Supabase zatím nejsou v aplikaci – přeskakuju."
+            exit 0
+          fi
+          curl -fsS --retry 3 --retry-delay 20 -X POST "$URL/rest/v1/rpc/heartbeat" \
+            -H "apikey: $KEY" -H "Authorization: Bearer $KEY" -H "Content-Type: application/json" -d '{}'
+          echo
+      - name: Udržet plánování zapnuté
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh api -X PUT "repos/${{ github.repository }}/actions/workflows/supabase-keepalive.yml/enable" || true
