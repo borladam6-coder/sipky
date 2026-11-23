@@ -140,6 +140,16 @@ button:disabled{cursor:default}
 .k.ms{background:#0E0F14;color:var(--mut);font-size:20px;letter-spacing:1px}
 .k.un{background:#0E0F14;font-size:18px;letter-spacing:1px;display:flex;align-items:center;justify-content:center;gap:6px}
 .k.un:disabled{text-decoration:none}
+/* terč */
+.gx{grid-template-columns:88px minmax(0,1fr) 88px}.gx .ghr{display:flex;justify-content:flex-end;margin:0}
+.bdp{margin:4px 16px calc(12px + env(safe-area-inset-bottom));display:flex;flex-direction:column;gap:8px;flex:none}
+.bdw{position:relative;width:min(100%,54dvh);margin:0 auto;touch-action:none;user-select:none;-webkit-user-select:none;-webkit-touch-callout:none}
+.bdw svg{display:block;width:100%;height:auto;aspect-ratio:1/1;overflow:visible}
+.bdw text{font-family:var(--cd);font-weight:700;pointer-events:none}
+.bdp .kg{background:var(--ln);padding:2px}
+.bdtag{position:absolute;left:0;top:0;transform:translate(-50%,-100%);background:var(--acc);color:#0A0B0F;padding:7px 16px 6px;font:italic 800 36px/1 var(--cd);text-align:center;pointer-events:none;display:none;white-space:nowrap;z-index:4}
+.bdtag small{display:block;margin-top:3px;font:700 13px/1.1 var(--cd);letter-spacing:1.5px}
+.bdtag.on{display:block}.bdtag.bad small{color:#A3151D}
 /* cricket */
 .csc{display:grid;gap:2px;background:var(--ln);padding:2px;margin:0 16px;flex:none}
 .csc>div{background:var(--s2);padding:8px 12px;display:flex;flex-direction:column;overflow:hidden}
@@ -251,7 +261,7 @@ button:disabled{cursor:default}
 'use strict';
 const $app = document.getElementById('app'), $sheet = document.getElementById('sheet'), $toast = document.getElementById('toast');
 const KEY = 'sipky.v1';
-const APP_VERSION = '1.4';
+const APP_VERSION = '1.5';
 const PALETTE = ['#FF6B3D','#2EC5F0','#B28CFF','#19C37D','#FF8FB1','#FFB547','#7CC4FF','#D9DCE1'];
 const TEAMC = ['#FF6B3D','#2EC5F0','#B28CFF','#19C37D'], TEAMN = ['A','B','C','D'];
 const CR = [20,19,18,17,16,15,25];
@@ -275,6 +285,7 @@ const IC = {
   undo: sv('<path d="M9 14L4 9l5-5"/><path d="M4 9h10a6 6 0 010 12h-3"/>', 20), up: sv('<path d="M6 15l6-6 6 6"/>', 20),
   chev: sv('<path d="M9 5l7 7-7 7"/>', 20), plus: sv('<path d="M12 5v14M5 12h14"/>', 18), edit: sv('<path d="M4 20h4L19 9l-4-4L4 16z"/>', 18),
   dl: sv('<path d="M12 4v11"/><path d="M7 10l5 5 5-5"/><path d="M5 20h14"/>', 18), ul: sv('<path d="M12 15V4"/><path d="M7 9l5-5 5 5"/><path d="M5 20h14"/>', 18),
+  tgt: sv('<circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="4.5"/><circle cx="12" cy="12" r=".6"/>', 22), grid: sv('<path d="M4 4h6v6H4zM14 4h6v6h-6zM4 14h6v6H4zM14 14h6v6h-6z"/>', 20),
   mic: sv('<rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0014 0M12 18v3"/>', 24),
   shuf: sv('<path d="M3 7h4l10 10h4M3 17h4l3-3M14 10l3-3h4"/><path d="M18 4l3 3-3 3M18 14l3 3-3 3"/>', 18), down: sv('<path d="M6 9l6 6 6-6"/>', 16)
 };
@@ -1097,7 +1108,117 @@ function roundStrip(g) {
   const tot = g.type === 'cricket' ? `<small>ZÁSAHY</small><b>${g.tMarks}</b>` : `<small>KOLO</small><b>${g.tPts}</b>`;
   return `<section class="rnd" aria-label="Aktuální kolo">${cells}<div class="tot">${tot}</div></section>`;
 }
+/* ---------- zadávání terčem ---------- */
+/* Zvenku double 1/5, triple 1/5, single 3/5; uprostřed tlačítko BULL, které se rozvětví na 25 / 50.
+   Polož prst → políčko se rozsvítí a nad prstem je štítek; posuň → změní se; pusť → zapíše se. */
+const BORD = [20, 1, 18, 4, 13, 6, 10, 15, 2, 17, 3, 19, 7, 16, 8, 11, 14, 9, 12, 5];
+const BG = {RB: 24, R: 180, RIM: 192};
+BG.rS = BG.RB + .6 * (BG.R - BG.RB); BG.rT = BG.RB + .8 * (BG.R - BG.RB);
+const BBR = [{m: 1, x: -64, y: -80, r: 42}, {m: 2, x: 64, y: -80, r: 42}];
+const BCOL = {red: '#C8323C', grn: '#1E8A4C', blk: '#141414', crm: '#E9DFC7', wire: '#8C8F94'};
+const BD = {hold: false, dirty: false, open: false, cur: null, pid: null};
+S.inp = LS.get('.inp') === 'board' ? 'board' : 'num';
+function bdArc(r0, r1, d0, d1) {
+  const P = (r, d) => { const a = d * Math.PI / 180; return (r * Math.cos(a)).toFixed(2) + ' ' + (r * Math.sin(a)).toFixed(2); };
+  return `M${P(r1, d0)}A${r1} ${r1} 0 0 1 ${P(r1, d1)}L${P(r0, d1)}A${r0} ${r0} 0 0 0 ${P(r0, d0)}Z`;
+}
+function bdXY(r, d) { const a = d * Math.PI / 180; return [(r * Math.cos(a)).toFixed(2), (r * Math.sin(a)).toFixed(2)]; }
+function boardSvg(g) {
+  const {RB, R, RIM, rS, rT} = BG;
+  const dim = n => g.type === 'cricket' && (!CR.includes(n) || g.sides.every(s => s.marks[n] >= 3));
+  let co = null;
+  if (g.type === 'x01') { const s = g.sides[g.cur]; if (s.opened) { const c = checkout(s.rem, 3 - g.darts.length, g.settings.outMode); if (c && c[0] && c[0].n) co = c[0]; } }
+  const rings = [[RB, rS, 1], [rS, rT, 3], [rT, R, 2]];
+  let o = `<circle r="${RIM}" fill="#050505" stroke="#2A2C33" stroke-width="1.5"/>`;
+  BORD.forEach((n, i) => {
+    const mid = -90 + i * 18, ev = i % 2 === 0;
+    let w = '';
+    rings.forEach(([r0, r1, m]) => {
+      const f = m === 1 ? (ev ? BCOL.blk : BCOL.crm) : (ev ? BCOL.red : BCOL.grn);
+      const tc = m === 1 ? (ev ? BCOL.crm : BCOL.blk) : '#FFFFFF';
+      const lr = m === 1 ? r0 + .62 * (r1 - r0) : (r0 + r1) / 2, [x, y] = bdXY(lr, mid);
+      w += `<path id="b${n}_${m}" d="${bdArc(r0, r1, mid - 9, mid + 9)}" fill="${f}" data-f="${f}" stroke="${BCOL.wire}" stroke-width=".8"/>`;
+      w += `<text id="l${n}_${m}" x="${x}" y="${y}" fill="${tc}" data-f="${tc}" font-size="${m === 1 ? 22 : m === 2 ? 15 : 14}" text-anchor="middle" dominant-baseline="central">${m === 1 ? n : (m === 2 ? 'D' : 'T') + n}</text>`;
+    });
+    o += dim(n) ? `<g opacity=".32">${w}</g>` : w;
+  });
+  o += `<circle r="${R}" fill="none" stroke="${BCOL.wire}" stroke-width="1.4"/>`;
+  if (co && co.n !== 25) { const i = BORD.indexOf(co.n), mid = -90 + i * 18, rr = co.m === 1 ? [RB, rS] : co.m === 3 ? [rS, rT] : [rT, R]; o += `<path d="${bdArc(rr[0], rr[1], mid - 9, mid + 9)}" fill="none" stroke="#FFD400" stroke-width="3" stroke-dasharray="6 4" pointer-events="none"/>`; }
+  const bullDim = g.type === 'cricket' && g.sides.every(s => s.marks[25] >= 3);
+  o += `<g${bullDim ? ' opacity=".32"' : ''}><circle id="bbull" r="${RB}" fill="${BCOL.red}" data-f="${BCOL.red}" stroke="${co && co.n === 25 ? '#FFD400' : BCOL.grn}" stroke-width="4"/><text x="0" y="0" fill="#FFFFFF" font-size="12" text-anchor="middle" dominant-baseline="central">BULL</text></g>`;
+  if (BD.open) {
+    o += `<circle r="${RIM + 4}" fill="#0A0B0F" opacity=".62"/>`;
+    BBR.forEach(b => {
+      const c = b.m === 1 ? BCOL.grn : BCOL.red;
+      o += `<line x1="0" y1="0" x2="${b.x}" y2="${b.y}" stroke="#FFD400" stroke-width="3"/><circle id="bb${b.m}" cx="${b.x}" cy="${b.y}" r="${b.r}" fill="${c}" data-f="${c}" stroke="#FFFFFF" stroke-width="2"/><text x="${b.x}" y="${b.y - 8}" fill="#FFFFFF" font-size="30" text-anchor="middle" dominant-baseline="central">${b.m === 1 ? 25 : 50}</text><text x="${b.x}" y="${b.y + 18}" fill="#FFFFFF" font-size="12" text-anchor="middle" dominant-baseline="central">${b.m === 1 ? 'BULL' : 'BULLSEYE'}</text>`;
+    });
+    o += `<circle r="${RB}" fill="${BCOL.red}" stroke="#FFD400" stroke-width="4"/><text x="0" y="0" fill="#FFFFFF" font-size="12" text-anchor="middle" dominant-baseline="central">BULL</text>`;
+  }
+  return `<svg viewBox="-196 -196 392 392" role="img" aria-label="Terč – polož prst na políčko a pusť">${o}</svg>`;
+}
+function boardPad(g) {
+  const n = V0.kind ? 3 : 2;
+  return `<section class="bdp" aria-label="Zadání hodu – terč"><div class="bdw" id="bdw">${boardSvg(g)}<div class="bdtag" id="bdtag"></div></div>
+  <div class="kg" style="grid-template-columns:repeat(${n},minmax(0,1fr))"><button class="k ms" data-a="dart" data-n="0" data-m="1">MISS</button>${V0.kind ? `<button type="button" class="k mic" data-ptt aria-label="Zadat hlasem – drž a mluv">${IC.mic}</button>` : ''}<button class="k un" data-a="undo" ${g.history.length ? '' : 'disabled'} aria-label="Vrátit poslední hod">${IC.undo} ZPĚT</button></div></section>`;
+}
+function boardHit(ux, uy) {
+  if (BD.open) { const b = BBR.find(b => Math.hypot(ux - b.x, uy - b.y) <= b.r); return b ? {n: 25, m: b.m, br: 1} : null; }
+  const r = Math.hypot(ux, uy);
+  if (r <= BG.RB) return {bull: 1};
+  if (r > BG.R) return null;
+  const a = Math.atan2(uy, ux) * 180 / Math.PI + 90, i = ((Math.round(a / 18) % 20) + 20) % 20;
+  return {n: BORD[i], m: r <= BG.rS ? 1 : r <= BG.rT ? 3 : 2};
+}
+const bdKey = h => !h ? '' : h.bull ? 'bull' : h.br ? 'br' + h.m : h.n + '_' + h.m;
+function bdEls(h) {
+  if (!h) return [];
+  if (h.bull) return [document.getElementById('bbull')];
+  if (h.br) return [document.getElementById('bb' + h.m)];
+  return [document.getElementById('b' + h.n + '_' + h.m), document.getElementById('l' + h.n + '_' + h.m)];
+}
+function bdPaint(h, on) { bdEls(h).forEach((el, i) => { if (el) el.setAttribute('fill', on ? (i ? '#0A0B0F' : '#FFD400') : el.getAttribute('data-f')); }); }
+function bdSet(h, p) {
+  if (bdKey(h) !== bdKey(BD.cur)) { bdPaint(BD.cur, false); bdPaint(h, true); BD.cur = h; }
+  const t = document.getElementById('bdtag'), g = S.current;
+  if (!t) return;
+  if (!h || !g) { t.className = 'bdtag'; return; }
+  let lbl, sub = '', bad = false;
+  if (h.bull) { lbl = 'BULL'; sub = '25 / 50'; }
+  else { lbl = dartLbl(h); const pv = preview(g, h.n, h.m); sub = pv.t; bad = pv.c === 'bad'; }
+  t.innerHTML = `${esc(lbl)}<small>${esc(sub)}</small>`;
+  t.className = 'bdtag on' + (bad ? ' bad' : '');
+  t.style.left = Math.max(54, Math.min(p.w - 54, p.px)) + 'px';
+  t.style.top = (p.py - 46) + 'px';
+}
+function bdStart(p) { BD.hold = true; BD.cur = null; bdSet(boardHit(p.ux, p.uy), p); }
+function bdMove(p) { if (BD.hold) bdSet(boardHit(p.ux, p.uy), p); }
+function bdEnd(commit) {
+  if (!BD.hold) return;
+  BD.hold = false;
+  const h = BD.cur; BD.cur = null;
+  if (commit && BD.open) { BD.open = false; if (h && h.br) throwDart(25, h.m); render(); return; }
+  if (commit && h && h.bull) { BD.open = true; render(); return; }
+  if (commit && h) { throwDart(h.n, h.m); render(); return; }
+  bdPaint(h, false); const t = document.getElementById('bdtag'); if (t) t.className = 'bdtag';
+  if (BD.dirty) render();
+}
+function bdPt(e, w) {
+  const r = w.getBoundingClientRect(), sv = w.querySelector('svg'), q = sv ? sv.getBoundingClientRect() : r, k = 392 / Math.min(q.width, q.height);
+  return {px: e.clientX - r.left, py: e.clientY - r.top, w: r.width, ux: (e.clientX - q.left - q.width / 2) * k, uy: (e.clientY - q.top - q.height / 2) * k};
+}
+document.addEventListener('pointerdown', e => {
+  const w = e.target.closest && e.target.closest('#bdw');
+  if (!w || BD.hold) return;
+  e.preventDefault();
+  try { w.setPointerCapture(e.pointerId); } catch (er) {}
+  BD.pid = e.pointerId; bdStart(bdPt(e, w));
+});
+document.addEventListener('pointermove', e => { if (!BD.hold || e.pointerId !== BD.pid) return; const w = document.getElementById('bdw'); if (w) bdMove(bdPt(e, w)); });
+document.addEventListener('pointerup', e => { if (BD.hold && e.pointerId === BD.pid) bdEnd(true); });
+document.addEventListener('pointercancel', e => { if (BD.hold && e.pointerId === BD.pid) bdEnd(false); });
+window.__bd = {boardHit, bdStart, bdMove, bdEnd, BD, S, render};
 function keypad(g) {
+  if (S.inp === 'board') return boardPad(g);
   const closed = n => g.type === 'cricket' && g.sides.every(s => s.marks[n] >= 3);
   const nums = g.type === 'cricket' ? [20, 19, 18, 17, 16, 15] : Array.from({length: 20}, (_, i) => i + 1);
   return `<section class="kp" aria-label="Zadání hodu"><div class="kg" style="grid-template-columns:repeat(${g.type === 'cricket' ? 3 : 5},minmax(0,1fr))">${nums.map(n => `<button class="k" data-a="num" data-n="${n}" ${closed(n) ? 'disabled' : ''}>${n}</button>`).join('')}</div>
@@ -1111,7 +1232,7 @@ V.game = () => {
   if (g.type === 'x01') { title = st.start + ' · ' + OUTL[st.outMode]; sub = (st.inMode === 'double' ? 'DOUBLE IN' : 'STRAIGHT IN') + ' · KOLO ' + r; }
   else if (g.type === 'cricket') { title = 'CRICKET · ' + CML[st.cricketMode]; sub = 'KOLO ' + r; }
   else { title = 'COUNT UP'; sub = 'KOLO ' + r + ' · BEZ LIMITU'; }
-  return `<div class="app game"><header class="ghd"><button class="ib" data-a="go" data-v="home" aria-label="Zpět do menu">${IC.back}</button><div><h1>${title}</h1><span>${sub}</span></div><button class="ib" data-a="gmenu" aria-label="Menu hry">${IC.menu}</button></header>
+  return `<div class="app game"><header class="ghd gx"><button class="ib" data-a="go" data-v="home" aria-label="Zpět do menu">${IC.back}</button><div><h1>${title}</h1><span>${sub}</span></div><p class="ghr"><button class="ib" data-a="inp" aria-label="${S.inp === 'board' ? 'Zadávat čísly' : 'Zadávat terčem'}">${S.inp === 'board' ? IC.grid : IC.tgt}</button><button class="ib" data-a="gmenu" aria-label="Menu hry">${IC.menu}</button></p></header>
   <div class="gmid">${g.type === 'cricket' ? cricketBoard(g) : scoreBoard(g)}${infoBar(g)}${roundStrip(g)}</div>${keypad(g)}${S.flash && S.flash.until > Date.now() ? `<div class="flash ${S.flash.kind}" role="status">${esc(S.flash.text)}</div>` : ''}</div>`;
 };
 function placement(g) {
@@ -1204,6 +1325,8 @@ function sheetBody(sh) {
   return '';
 }
 function render() {
+  if (BD.hold) { BD.dirty = true; return; }
+  BD.dirty = false;
   if (V0.holding) { V0.dirty = true; return; }
   if (S.view === 'setup' && !S.draft) S.view = 'home';
   if (S.view === 'players' && !S.draft) S.view = 'home';
@@ -1216,7 +1339,7 @@ function render() {
 /* ---------- akce ---------- */
 const A = {
   go(ds) {
-    S.sheet = null;
+    S.sheet = null; BD.open = false;
     if (ds.v === 'game' && !S.current) return;
     S.view = ds.v;
     if (ds.v === 'game') wake(); else { releaseWake(); srShutdown(); }
@@ -1260,7 +1383,8 @@ const A = {
   num(ds) { S.sheet = {k: 'mult', n: +ds.n}; },
   mult(ds) { S.sheet = null; throwDart(+ds.n, +ds.m); },
   dart(ds) { throwDart(+ds.n, +ds.m); },
-  undo() { undo(); },
+  undo() { BD.open = false; undo(); },
+  inp() { S.inp = S.inp === 'board' ? 'num' : 'board'; BD.open = false; LS.set('.inp', S.inp); toast(S.inp === 'board' ? 'ZADÁVÁNÍ TERČEM' : 'ZADÁVÁNÍ ČÍSLY'); },
   gmenu() { S.sheet = {k: 'gmenu'}; },
   askDiscard() { S.sheet = {k: 'confirm', title: 'ZAHODIT HRU?', text: 'Rozehraná hra se smaže a nezapočítá do statistik.', ok: 'discard', okl: 'ZAHODIT'}; },
   discard() { S.current = null; persistCurrent(); S.sheet = null; S.view = 'home'; releaseWake(); srShutdown(); },
