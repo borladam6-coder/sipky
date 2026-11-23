@@ -251,7 +251,7 @@ button:disabled{cursor:default}
 'use strict';
 const $app = document.getElementById('app'), $sheet = document.getElementById('sheet'), $toast = document.getElementById('toast');
 const KEY = 'sipky.v1';
-const APP_VERSION = '1.2';
+const APP_VERSION = '1.3';
 const PALETTE = ['#FF6B3D','#2EC5F0','#B28CFF','#19C37D','#FF8FB1','#FFB547','#7CC4FF','#D9DCE1'];
 const TEAMC = ['#FF6B3D','#2EC5F0','#B28CFF','#19C37D'], TEAMN = ['A','B','C','D'];
 const CR = [20,19,18,17,16,15,25];
@@ -470,7 +470,7 @@ function finish(g, wi, info) {
     sides: g.sides.map(s => ({name: s.name, color: s.color, team: s.team, players: s.players, fin: finalVal(g, s)}))};
   S.matches.push(m); persistMatch(m);
   S.result = stripHist(g); S.current = null; persistCurrent();
-  S.view = 'result'; S.sheet = null; S.flash = null; releaseWake();
+  S.view = 'result'; S.sheet = null; S.flash = null; releaseWake(); srShutdown();
 }
 function finalVal(g, s) {
   if (g.type === 'x01') return s.rem;
@@ -663,7 +663,7 @@ function importData(txt) {
 }
 
 /* ---------- hlasové zadávání ---------- */
-const V0 = {kind: null, d: null, rec: null, state: 'idle', heard: '', partial: '', noLang: false, err: '', srSession: 0, srActive: -1, srWatch: null, open: false, holding: false, toggle: false, dirty: false, stopAsap: false, t0: 0};
+const V0 = {kind: null, d: null, rec: null, state: 'idle', heard: '', partial: '', noLang: false, err: '', srSession: 0, srActive: -1, srWatch: null, open: false, holding: false, toggle: false, dirty: false, stopAsap: false, t0: 0, typed: '', capturing: false, running: false, res: [], segFrom: 0, finTimer: null, idleT: null, log: []};
 const strip = s => s.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
 const NUMW = {jedna:1, jeden:1, jednu:1, jednicka:1, jednicku:1, dva:2, dve:2, tri:3, ctyri:4, ctyrka:4, ctyrku:4, pet:5, petka:5, petku:5, sest:6, sestka:6, sestku:6, sedm:7, sedmicka:7, sedmicku:7, osm:8, osmicka:8, osmicku:8, devet:9, devitka:9, devitku:9, deset:10, desitka:10, desitku:10, jedenact:11, dvanact:12, trinact:13, ctrnact:14, patnact:15, sestnact:16, sedmnact:17, osmnact:18, devatenact:19, dvacet:20, dvacitka:20, dvacitku:20, petadvacet:25, padesat:50};
 const WSET = s => new Set(s.split(' '));
@@ -710,42 +710,47 @@ const $vp = document.getElementById('vpanel');
 /* Panel hlasu žije mimo render(), takže se tlačítko, které právě držíš, nikdy nepřekreslí. */
 function vOpen() {
   if (V0.open) return;
-  V0.open = true; V0.heard = ''; V0.partial = ''; V0.err = '';
+  V0.open = true; V0.heard = ''; V0.partial = ''; V0.err = ''; V0.typed = '';
   $vp.innerHTML = `<div class="sheet-bg" data-vclose></div><section class="sheet" role="dialog" aria-label="Zadání hlasem"><div id="vbody" class="col g14"></div>
     <button type="button" id="vptt" class="ptt" data-ptt><i class="dot off"></i><span>DRŽ A MLUV</span></button>
-    <div class="row2"><button type="button" class="btn" data-vclose>ZAVŘÍT</button><button type="button" class="btn acc" id="vok" disabled>ZAPSAT</button></div></section>`;
+    <form id="vform" class="col g8" autocomplete="off"><label class="lbl" for="vtype">NEBO NAPIŠ / NADIKTUJ KLÁVESNICÍ</label><input class="inp" id="vtype" enterkeyhint="done" placeholder="např. t20 20 d5 · mimo · bull" autocapitalize="off" autocorrect="off" spellcheck="false"></form>
+    <div class="row2"><button type="button" class="btn" data-vclose>ZAVŘÍT</button><button type="button" class="btn acc" id="vok" disabled>ZAPSAT</button></div>
+    <p class="note" id="vdiag" style="font-size:11px;opacity:.6"></p></section>`;
   $vp.hidden = false;
   vUpdate();
 }
 function vClose() {
-  if (V0.kind === 'sr' && V0.rec && V0.state !== 'idle') { V0.srSession++; try { V0.rec.abort(); } catch (e) {} }
+  // prohlížečové rozpoznávání nechávám běžet na pozadí – na iPhonu se druhé spuštění často nepovede
+  if (V0.kind === 'sr') { V0.capturing = false; clearTimeout(V0.finTimer); vIdleTimer(); }
   if (V0.kind === 'dict' && V0.d && V0.d.active()) V0.d.stop().catch(() => {});
-  clearTimeout(V0.srWatch);
-  V0.open = false; V0.holding = false; V0.toggle = false; V0.state = 'idle';
+  V0.open = false; V0.holding = false; V0.toggle = false; V0.typed = '';
+  if (V0.kind !== 'sr' || V0.state !== 'idle') V0.state = 'idle';
   $vp.hidden = true; $vp.innerHTML = '';
   render();
 }
+function vText() { return V0.typed.trim() ? V0.typed.trim() : (V0.heard + ' ' + V0.partial).trim(); }
+function vLog(ev) { V0.log.push(ev); if (V0.log.length > 10) V0.log.shift(); const el = document.getElementById('vdiag'); if (el) el.textContent = 'Diagnostika: ' + V0.log.join(' · '); }
 function vUpdate() {
   if (!V0.open) return;
   const g = S.current, body = document.getElementById('vbody'), ptt = document.getElementById('vptt'), ok = document.getElementById('vok');
   if (!g || !body) return;
-  const txt = (V0.heard + ' ' + V0.partial).trim(), pv = parseVoice(txt), room = 3 - g.darts.length, st = V0.state;
+  const txt = vText(), pv = parseVoice(txt), room = 3 - g.darts.length, st = V0.state;
   const nd = pv.acts.filter(a => a.t === 'd').length, dict = V0.kind === 'dict';
   const ind = {
     starting: ['dot off', 'ZAPÍNÁM MIKROFON… POČKEJ'],
     listening: ['dot', 'MLUV TEĎ'],
     speech: ['dot big', 'SLYŠÍM TĚ…'],
     processing: ['spin', 'ZPRACOVÁVÁM…'],
-    idle: V0.err ? ['dot off', 'MIKROFON VYPNUTÝ'] : pv.acts.length ? ['ok', 'ROZPOZNÁNO – ZKONTROLUJ A ZAPIŠ'] : txt ? ['dot off', 'NEROZPOZNAL JSEM ŽÁDNOU ŠIPKU'] : ['dot off', dict ? 'ŤUKNI NA TLAČÍTKO A MLUV' : 'DRŽ TLAČÍTKO, MLUV, PAK PUSŤ']
+    idle: V0.err ? ['dot off', 'POZOR'] : pv.acts.length ? ['ok', 'ROZPOZNÁNO – ZKONTROLUJ A ZAPIŠ'] : txt ? ['dot off', 'NEROZPOZNAL JSEM ŽÁDNOU ŠIPKU'] : ['dot off', dict ? 'ŤUKNI NA TLAČÍTKO A MLUV' : 'DRŽ TLAČÍTKO, MLUV, PAK PUSŤ']
   }[st] || ['dot off', ''];
   body.innerHTML = `<div class="shd"><h2 style="font-size:52px">HLAS</h2><span><span>${esc(curPlayer(g).name)}</span><span style="color:var(--ink)">${room} ${plural(room, 'ŠIPKA', 'ŠIPKY', 'ŠIPEK')} V KOLE</span></span></div>
     <div class="vst${st === 'listening' || st === 'speech' ? ' live' : ''}" role="status"><i class="${ind[0]}"></i><span>${ind[1]}</span></div>
-    <div class="vh${st !== 'idle' ? ' on' : ''}" aria-live="polite">${txt ? esc(V0.heard) + (V0.partial ? ` <span>${esc(V0.partial)}</span>` : '') : '<span>Např. „triple dvacet, dvacet, double pět“ nebo „mimo, mimo, bull“</span>'}</div>
+    <div class="vh${st !== 'idle' ? ' on' : ''}" aria-live="polite">${txt ? (V0.typed.trim() ? esc(txt) : esc(V0.heard) + (V0.partial ? ` <span>${esc(V0.partial)}</span>` : '')) : '<span>Např. „triple dvacet, dvacet, double pět“ nebo „mimo, mimo, bull“</span>'}</div>
     ${pv.acts.length ? `<div class="vch">${pv.acts.map(a => a.t === 'u' ? '<span class="chip s">ZPĚT</span>' : `<span class="chip ${a.n && a.m === 3 ? 't' : a.n && a.m === 2 ? '' : 's'}">${dartLbl(a)}</span>`).join('')}</div>` : ''}
     ${pv.unk.length ? `<p class="note">Nerozumím: ${esc(pv.unk.join(', '))}</p>` : ''}
     ${nd > room ? `<p class="note">Do kola se vejde už jen ${room} – zbytek se nezapíše.</p>` : ''}
     ${V0.err ? `<p class="note" style="color:#FF7A7A">${esc(V0.err)}</p>` : ''}`;
-  if (ok) ok.disabled = !pv.acts.length || st !== 'idle';
+  if (ok) ok.disabled = !pv.acts.length || (st !== 'idle' && !V0.typed.trim());
   if (ptt) {
     const on = st === 'listening' || st === 'speech';
     const lbl = dict ? (st === 'idle' ? 'ŤUKNI A MLUV' : st === 'processing' ? 'ZPRACOVÁVÁM…' : 'ŤUKNI PRO KONEC')
@@ -754,14 +759,16 @@ function vUpdate() {
     ptt.querySelector('i').className = on ? 'dot' : st === 'processing' ? 'spin' : 'dot off';
     ptt.querySelector('span').textContent = lbl;
   }
+  const dg = document.getElementById('vdiag');
+  if (dg && V0.log.length) dg.textContent = 'Diagnostika: ' + V0.log.join(' · ');
 }
 function vAfterText() {
   if (!V0.open || !S.current) return;
-  const pv = parseVoice(V0.heard);
+  const pv = parseVoice(vText());
   if (pv.ok && pv.acts.length && V0.state === 'idle') vApply();
 }
 function vApply() {
-  const {acts} = parseVoice((V0.heard + ' ' + V0.partial).trim());
+  const {acts} = parseVoice(vText());
   for (const a of acts) {
     const g = S.current;
     if (!g || g.finished) break;
@@ -773,74 +780,90 @@ function vApply() {
   }
   vClose();
 }
-/* ---- prohlížečové rozpoznávání (iPhone, Android): jedna instance, drž-a-mluv ---- */
+/* ---- prohlížečové rozpoznávání (iPhone, Android) ----
+   Rozpoznávání se spustí při prvním podržení a pak běží dál (continuous). Tlačítko jen určuje,
+   které věty patří k zápisu. Opakované start/stop je na iPhonu nespolehlivé (2. spuštění tiše selže). */
 function srMake() {
   const SR = window.SpeechRecognition || window.webkitSpeechRecognition, r = new SR();
   r.lang = 'cs-CZ'; r.interimResults = true; r.continuous = true; r.maxAlternatives = 3;
-  const live = () => r === V0.rec && V0.srActive === V0.srSession;
-  r.onstart = () => { if (!live()) return; clearTimeout(V0.srWatch); if (V0.state === 'starting') V0.state = 'listening'; if (V0.stopAsap) { V0.stopAsap = false; srStop(); } vUpdate(); };
-  r.onspeechstart = () => { if (live() && V0.state === 'listening') { V0.state = 'speech'; vUpdate(); } };
+  const mine = () => r === V0.rec;
+  r.onstart = () => { if (!mine()) return; V0.running = true; vLog('start'); clearTimeout(V0.srWatch); if (V0.capturing && V0.state === 'starting') V0.state = 'listening'; vUpdate(); };
+  r.onaudiostart = () => { if (mine()) vLog('mikrofon'); };
+  r.onspeechstart = () => { if (!mine()) return; vLog('řeč'); if (V0.capturing && V0.state === 'listening') { V0.state = 'speech'; vUpdate(); } };
   r.onresult = e => {
-    if (!live()) return;
-    let fin = '', part = '';
+    if (!mine()) return;
+    V0.res = [];
     for (let i = 0; i < e.results.length; i++) {
       const res = e.results[i];
-      if (res.isFinal) {
-        let best = res[0].transcript;
-        for (let a = 0; a < res.length; a++) { const pv = parseVoice(res[a].transcript); if (pv.acts.length && !pv.unk.length) { best = res[a].transcript; break; } }
-        fin += ' ' + best;
-      } else part += ' ' + res[0].transcript;
+      let best = res[0].transcript;
+      if (res.isFinal) for (let a = 0; a < res.length; a++) { const pv = parseVoice(res[a].transcript); if (pv.acts.length && !pv.unk.length) { best = res[a].transcript; break; } }
+      V0.res.push({t: best, f: res.isFinal});
     }
-    V0.heard = fin.trim(); V0.partial = part.trim();
-    if (V0.state === 'listening') V0.state = 'speech';
-    vUpdate();
+    vLog('výsledek');
+    if (V0.capturing) { vSeg(); if (V0.state === 'listening') V0.state = 'speech'; vUpdate(); }
   };
   r.onerror = e => {
-    if (!live()) return;
-    const m = {'not-allowed': 'Mikrofon nebo rozpoznávání řeči není povolené. Na iPhonu: Nastavení → Safari → Mikrofon, a zapnutá Siri.', 'service-not-allowed': 'Rozpoznávání řeči není dostupné. Na iPhonu musí být zapnutá Siri (Nastavení → Siri).', 'no-speech': 'Nic jsem neslyšel – drž tlačítko a mluv nahlas.', network: 'Rozpoznávání řeči potřebuje internet.', 'audio-capture': 'Mikrofon nejde zapnout – nepoužívá ho jiná aplikace?', aborted: ''};
-    V0.err = m[e.error] ?? 'Rozpoznávání selhalo (' + e.error + ').';
+    if (!mine()) return;
+    vLog('chyba:' + e.error);
+    if (e.error === 'no-speech' || e.error === 'aborted') return;
+    const m = {'not-allowed': 'Mikrofon nebo rozpoznávání řeči není povolené. Na iPhonu: Nastavení → Safari → Mikrofon, a zapnutá Siri.', 'service-not-allowed': 'Rozpoznávání řeči není dostupné. Na iPhonu musí být zapnutá Siri (Nastavení → Siri). Můžeš diktovat přes klávesnici níže.', network: 'Rozpoznávání řeči potřebuje internet.', 'audio-capture': 'Mikrofon nejde zapnout – nepoužívá ho jiná aplikace?'};
+    V0.err = m[e.error] || 'Rozpoznávání selhalo (' + e.error + '). Zkus to znovu nebo diktuj přes klávesnici.';
     vUpdate();
   };
   r.onend = () => {
-    if (r !== V0.rec || V0.srActive !== V0.srSession) return;
+    if (!mine()) return;
+    vLog('konec');
+    V0.running = false; V0.rec = null;
     clearTimeout(V0.srWatch);
-    V0.state = 'idle'; V0.toggle = false; V0.holding = false;
-    if (V0.partial && !V0.heard) { V0.heard = V0.partial; }
-    V0.partial = '';
-    if (!V0.heard && !V0.err) V0.err = 'Nic jsem nezachytil – drž tlačítko, počkej na červenou tečku a mluv.';
-    vUpdate(); vAfterText(); flushRender();
+    if (V0.capturing) vFinish();
   };
   return r;
 }
-function srStart() {
-  V0.heard = ''; V0.partial = ''; V0.err = ''; V0.stopAsap = false;
+function vSeg() {   // text od chvíle, kdy jsi zmáčkl tlačítko
+  const seg = V0.res.slice(V0.segFrom);
+  V0.heard = seg.filter(x => x.f).map(x => x.t).join(' ').trim();
+  V0.partial = seg.filter(x => !x.f).map(x => x.t).join(' ').trim();
+}
+function vFinish() {
+  clearTimeout(V0.finTimer);
+  if (!V0.capturing) return;
+  V0.capturing = false;
+  if (V0.partial) { V0.heard = (V0.heard + ' ' + V0.partial).trim(); V0.partial = ''; }
+  V0.state = 'idle'; V0.toggle = false;
+  if (!V0.heard && !V0.err) V0.err = 'Nic jsem nezachytil – drž tlačítko, počkej na červenou tečku a mluv. Případně diktuj přes klávesnici níže.';
+  vUpdate(); vAfterText(); flushRender();
+}
+function vIdleTimer() {   // po 3 minutách bez použití mikrofon vypni
+  clearTimeout(V0.idleT);
+  V0.idleT = setTimeout(() => { if (!V0.capturing && V0.rec) { try { V0.rec.stop(); } catch (e) {} } }, 180000);
+}
+function vCapture() {
+  V0.heard = ''; V0.partial = ''; V0.err = ''; V0.typed = '';
+  const inp = document.getElementById('vtype'); if (inp) inp.value = '';
+  V0.capturing = true; clearTimeout(V0.idleT);
+  if (V0.rec && V0.running) {        // běží → jen začni zapisovat od teď
+    V0.segFrom = V0.res.length;
+    V0.state = 'listening'; vLog('poslech');
+    return;
+  }
+  V0.res = []; V0.segFrom = 0;
   try {
-    if (!V0.rec) V0.rec = srMake();
-    V0.srActive = ++V0.srSession; V0.state = 'starting';
-    try { V0.rec.start(); }
-    catch (e) {
-      // předchozí relace ještě běží – ukonči ji a vezmi novou instanci
-      try { V0.rec.abort(); } catch (e2) {}
-      V0.rec = srMake(); V0.srActive = ++V0.srSession; V0.rec.start();
-    }
-    const id = V0.srActive;
+    if (V0.rec) { try { V0.rec.abort(); } catch (e) {} }
+    V0.rec = srMake(); V0.state = 'starting'; vLog('spouštím');
+    V0.rec.start();
     clearTimeout(V0.srWatch);
     V0.srWatch = setTimeout(() => {
-      if (V0.srActive === id && V0.state === 'starting') { try { V0.rec.abort(); } catch (e) {} V0.rec = null; V0.state = 'idle'; V0.holding = false; V0.err = 'Mikrofon se nespustil – zkus to znovu.'; vUpdate(); flushRender(); }
+      if (V0.state === 'starting') { vLog('nespustil se'); try { V0.rec && V0.rec.abort(); } catch (e) {} V0.rec = null; V0.running = false; V0.capturing = false; V0.state = 'idle'; V0.holding = false; V0.err = 'Mikrofon se nespustil – zkus to znovu, nebo diktuj přes klávesnici níže.'; vUpdate(); flushRender(); }
     }, 5000);
-  } catch (e) { V0.rec = null; V0.state = 'idle'; V0.err = 'Hlasové zadávání tu nejde spustit (' + (e && e.name || 'chyba') + ').'; }
+  } catch (e) { V0.rec = null; V0.capturing = false; V0.state = 'idle'; V0.err = 'Hlasové zadávání tu nejde spustit (' + (e && e.name || 'chyba') + ').'; vLog('výjimka:' + (e && e.name)); }
 }
-function srStop() {
-  if (!V0.rec || V0.state === 'idle') return;
-  if (V0.state === 'starting') { V0.stopAsap = true; return; }
-  V0.state = 'processing';
-  try { V0.rec.stop(); } catch (e) {}
-  const id = V0.srActive;
-  clearTimeout(V0.srWatch);
-  V0.srWatch = setTimeout(() => {   // pojistka: když prohlížeč neohlásí konec, ukonči to sami
-    if (V0.srActive === id && V0.state === 'processing') { try { V0.rec.abort(); } catch (e) {} V0.rec.onend && V0.rec.onend(); }
-  }, 4000);
-  vUpdate();
+function vRelease() {   // po puštění ještě chvíli čekej na dozvuk výsledků
+  if (!V0.capturing) return;
+  if (V0.state === 'starting') { V0.capturing = false; V0.state = 'idle'; V0.err = 'Pustil jsi moc brzy – drž, dokud mluvíš.'; vUpdate(); return; }
+  V0.state = 'processing'; vUpdate();
+  clearTimeout(V0.finTimer);
+  V0.finTimer = setTimeout(vFinish, 1300);
+  vIdleTimer();
 }
 function flushRender() { if (V0.dirty && !V0.holding) { V0.dirty = false; render(); } }
 function pttDown(el, e) {
@@ -848,16 +871,18 @@ function pttDown(el, e) {
   e.preventDefault();
   try { el.setPointerCapture(e.pointerId); } catch (x) {}
   if (!V0.open) vOpen();
-  if (V0.state !== 'idle') { if (V0.toggle) { V0.toggle = false; srStop(); } return; }   // druhé ťuknutí = konec
+  if (V0.capturing && V0.toggle) { V0.toggle = false; vRelease(); return; }   // druhé ťuknutí = konec
+  if (V0.capturing) return;
   V0.holding = true; V0.t0 = Date.now();
-  srStart(); vUpdate();
+  vCapture(); vUpdate();
 }
 function pttUp() {
   if (!V0.holding) return;
   V0.holding = false;
-  if (Date.now() - V0.t0 < 400 && V0.state !== 'idle') { V0.toggle = true; vUpdate(); flushRender(); return; }   // krátké ťuknutí = poslouchej, dokud znovu neťukneš
-  srStop(); flushRender();
+  if (Date.now() - V0.t0 < 400 && V0.capturing) { V0.toggle = true; vUpdate(); flushRender(); return; }   // krátké ťuknutí = poslouchej, dokud znovu neťukneš
+  vRelease(); flushRender();
 }
+function srShutdown() { clearTimeout(V0.idleT); clearTimeout(V0.finTimer); if (V0.rec) { const r = V0.rec; V0.rec = null; V0.running = false; try { r.abort(); } catch (e) {} } }
 document.addEventListener('pointerdown', e => { const el = e.target.closest && e.target.closest('[data-ptt]'); if (el) pttDown(el, e); });
 document.addEventListener('pointerup', pttUp);
 document.addEventListener('pointercancel', pttUp);
@@ -866,6 +891,8 @@ $vp.addEventListener('click', e => {
   if (e.target.closest('[data-vclose]')) { vClose(); return; }
   if (e.target.closest('#vok')) { vApply(); return; }
 });
+$vp.addEventListener('input', e => { if (e.target.id === 'vtype') { V0.typed = e.target.value; vUpdate(); } });
+$vp.addEventListener('submit', e => { e.preventDefault(); if (parseVoice(vText()).acts.length) vApply(); });
 /* ---- diktování přes Claude (online verze v Chrome/Edge): ťukni = začni, ťukni = konec ---- */
 function dictToggle() {
   if (!S.current) return;
@@ -1127,7 +1154,7 @@ const A = {
     S.sheet = null;
     if (ds.v === 'game' && !S.current) return;
     S.view = ds.v;
-    if (ds.v === 'game') wake(); else releaseWake();
+    if (ds.v === 'game') wake(); else { releaseWake(); srShutdown(); }
     window.scrollTo(0, 0);
   },
   closeSheet() { S.sheet = null; },
@@ -1171,7 +1198,7 @@ const A = {
   undo() { undo(); },
   gmenu() { S.sheet = {k: 'gmenu'}; },
   askDiscard() { S.sheet = {k: 'confirm', title: 'ZAHODIT HRU?', text: 'Rozehraná hra se smaže a nezapočítá do statistik.', ok: 'discard', okl: 'ZAHODIT'}; },
-  discard() { S.current = null; persistCurrent(); S.sheet = null; S.view = 'home'; releaseWake(); },
+  discard() { S.current = null; persistCurrent(); S.sheet = null; S.view = 'home'; releaseWake(); srShutdown(); },
   endCountup() {
     const g = S.current;
     if (!g) return;
