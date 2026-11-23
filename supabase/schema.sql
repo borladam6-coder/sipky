@@ -105,17 +105,8 @@ create policy throws_add on public.throws for insert to authenticated
               and exists (select 1 from public.games g where g.id = game_id and g.office_id = throws.office_id and g.status = 'live'));
 
 -- ---------- funkce volané z aplikace ----------
--- Založí kancelář s kódem a přidá do ní tento telefon.
-create or replace function public.create_office(p_code text, p_device text default null)
-returns uuid language plpgsql security definer set search_path = public as $$
-declare v_id uuid; v_code text := upper(trim(p_code));
-begin
-  if auth.uid() is null then raise exception 'not_signed_in'; end if;
-  if exists (select 1 from public.offices where code = v_code) then raise exception 'office_exists'; end if;
-  insert into public.offices(code) values (v_code) returning id into v_id;
-  insert into public.members(user_id, office_id, device) values (auth.uid(), v_id, p_device);
-  return v_id;
-end $$;
+-- Kancelář nejde založit z aplikace – zakládá ji jen správce v SQL Editoru (viz konec souboru).
+drop function if exists public.create_office(text, text);
 
 -- Připojí telefon ke kanceláři podle kódu.
 create or replace function public.join_office(p_code text, p_device text default null)
@@ -152,10 +143,10 @@ returns timestamptz language sql security definer set search_path = public as $$
 $$;
 
 revoke all on function public.my_offices() from public, anon;
-revoke all on function public.create_office(text, text), public.join_office(text, text), public.undo_last(text, int, text) from public, anon;
+revoke all on function public.join_office(text, text), public.undo_last(text, int, text) from public, anon;
 revoke all on function public.heartbeat() from public;
 grant execute on function public.my_offices() to authenticated;
-grant execute on function public.create_office(text, text), public.join_office(text, text), public.undo_last(text, int, text) to authenticated;
+grant execute on function public.join_office(text, text), public.undo_last(text, int, text) to authenticated;
 grant execute on function public.heartbeat() to anon, authenticated;
 
 -- ---------- živé změny (realtime) ----------
@@ -168,3 +159,9 @@ begin
   begin alter publication supabase_realtime add table public.games;   exception when duplicate_object then null; end;
   begin alter publication supabase_realtime add table public.throws;  exception when duplicate_object then null; end;
 end $$;
+
+-- ---------- založení kanceláře (jen správce) ----------
+-- Kód: 8–12 velkých písmen/číslic. Spusť jednou, s vlastním kódem:
+-- insert into public.offices(code) values ('TK4GYTHFJT');
+-- Seznam kanceláří:   select code, created_at from public.offices;
+-- Zrušit kancelář:     delete from public.offices where code = 'KOD';   (smaže i její hráče a hry)

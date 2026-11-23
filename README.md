@@ -15,9 +15,9 @@ Statická PWA na Netlify. Volitelně sdílená **kancelář** přes Supabase: v�
 4. **Adresa a klíč.** V *Project Settings → Data API* zkopíruj **Project URL** (`https://….supabase.co`)
    a v *Project Settings → API Keys* **Publishable key** (`sb_publishable_…`).
    Publishable key je veřejný z principu (data chrání pravidla v databázi). **Secret key nikam nedávej.**
-5. **První telefon.** V aplikaci *Hráči → Připojit kancelář*: vlož adresu a klíč, zvol kód kanceláře
-   (4–12 písmen/číslic, např. `TK4G`), napiš jméno telefonu a dej **Založit novou**.
-6. **Další telefony.** Stejný kód → **Připojit**. Po připojení aplikace nabídne nahrání hráčů a zápasů z telefonu
+5. **Kancelář založíš jen ty** v *SQL Editoru*: `insert into public.offices(code) values ('TVUJKOD');`
+   (8–12 velkých písmen/číslic). Z aplikace kancelář založit nejde, takže si nikdo cizí ve tvé databázi nic nezaloží.
+6. **Telefony.** V aplikaci *Hráči → Připojit kancelář* → kód → **Připojit**. Po připojení aplikace nabídne nahrání hráčů a zápasů z telefonu
    (hráči se stejným jménem se spojí).
 
 Až budou adresa a klíč doplněné přímo v `index.html` (`CLOUD_URL`, `CLOUD_KEY`), stačí na telefonech zadat jen kód.

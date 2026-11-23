@@ -1321,7 +1321,7 @@ function sheetBody(sh) {
     }
     case 'cloud': {
       const c = LS.get('.clcfg') || {}, need = !CLOUD_URL, val = (k, d) => esc(sh[k] != null ? sh[k] : d || '');
-      return `<h2 class="sh2">KANCELÁŘ</h2><div class="col g8">${need ? `<label class="lbl" for="clurl">ADRESA PROJEKTU SUPABASE</label><input class="inp sm" id="clurl" placeholder="https://xxxx.supabase.co" value="${val('url', c.url)}" autocomplete="off" autocapitalize="off" spellcheck="false"><label class="lbl" for="clkey">PUBLISHABLE KEY</label><input class="inp sm" id="clkey" placeholder="sb_publishable_…" value="${val('key', c.key)}" autocomplete="off" autocapitalize="off" spellcheck="false">` : ''}<label class="lbl" for="clcode">KÓD KANCELÁŘE</label><input class="inp" id="clcode" maxlength="12" placeholder="např. TK4G" value="${val('code')}" autocomplete="off" autocapitalize="characters" spellcheck="false"><label class="lbl" for="clwho">JMÉNO TOHOTO TELEFONU</label><input class="inp" id="clwho" maxlength="20" placeholder="např. Adam" value="${val('who')}" autocomplete="off">${sh.err ? `<p class="note" role="alert" style="color:#FF7A7A;font-size:14px">${esc(sh.err)}</p>` : ''}<div class="row2"><button class="btn" data-a="clCreate"${sh.busy ? ' disabled' : ''}>ZALOŽIT NOVOU</button><button class="btn acc" data-a="clJoin"${sh.busy ? ' disabled' : ''}>${sh.busy ? 'PŘIPOJUJU…' : 'PŘIPOJIT'}</button></div><button class="ghost" data-a="closeSheet">ZRUŠIT</button></div>`;
+      return `<h2 class="sh2">KANCELÁŘ</h2><div class="col g8">${need ? `<label class="lbl" for="clurl">ADRESA PROJEKTU SUPABASE</label><input class="inp sm" id="clurl" placeholder="https://xxxx.supabase.co" value="${val('url', c.url)}" autocomplete="off" autocapitalize="off" spellcheck="false"><label class="lbl" for="clkey">PUBLISHABLE KEY</label><input class="inp sm" id="clkey" placeholder="sb_publishable_…" value="${val('key', c.key)}" autocomplete="off" autocapitalize="off" spellcheck="false">` : ''}<label class="lbl" for="clcode">KÓD KANCELÁŘE</label><input class="inp" id="clcode" maxlength="12" placeholder="např. TK4G" value="${val('code')}" autocomplete="off" autocapitalize="characters" spellcheck="false"><label class="lbl" for="clwho">JMÉNO TOHOTO TELEFONU</label><input class="inp" id="clwho" maxlength="20" placeholder="např. Adam" value="${val('who')}" autocomplete="off">${sh.err ? `<p class="note" role="alert" style="color:#FF7A7A;font-size:14px">${esc(sh.err)}</p>` : ''}<button class="btn acc" data-a="clJoin"${sh.busy ? ' disabled' : ''}>${sh.busy ? 'PŘIPOJUJU…' : 'PŘIPOJIT'}</button><button class="ghost" data-a="closeSheet">ZRUŠIT</button></div>`;
     }
     case 'clUp': {
       const lp = (LS.get('.p') || []).length, lm = (LS.get('.m') || []).length;
@@ -1380,7 +1380,6 @@ const A = {
   closeSheet() { if (S.sheet && S.sheet.k === 'clConf') return; S.sheet = null; },
   clOpen() { S.sheet = {k: 'cloud', who: CL.who || ''}; },
   clJoin() { clConnect(false); },
-  clCreate() { clConnect(true); },
   clUpOpen() { S.sheet = {k: 'clUp'}; },
   clUpYes() { S.sheet = null; clUpload(); },
   clUpNo() { S.sheet = null; LS.set('.c_up', CL.office); },
@@ -1588,7 +1587,7 @@ async function clConnect(create) {
     S.sheet = hadLocal && LS.get('.c_up') !== data ? {k: 'clUp'} : null;
     toast((create ? 'Kancelář založena: ' : 'Připojeno ke kanceláři ') + code);
   } catch (e) {
-    S.sheet = Object.assign(S.sheet || {k: 'cloud'}, {busy: false, err: e.message === 'office_exists' ? 'Kancelář s tímhle kódem už existuje – zvol Připojit.' : e.message === 'office_not_found' ? 'Kancelář s tímhle kódem neexistuje – zkontroluj kód, nebo ji založ.' : /anonymous/i.test(e.message || '') ? 'V Supabase není zapnuté anonymní přihlášení (Authentication → Sign In / Providers).' : clIsNet(e) ? 'Nejde se spojit se serverem – zkontroluj internet, adresu a klíč.' : 'Chyba: ' + (e.message || e.code)});
+    S.sheet = Object.assign(S.sheet || {k: 'cloud'}, {busy: false, err: e.message === 'office_exists' ? 'Kancelář s tímhle kódem už existuje – zvol Připojit.' : e.message === 'office_not_found' ? 'Kancelář s tímhle kódem neexistuje – zkontroluj kód.' : /anonymous/i.test(e.message || '') ? 'V Supabase není zapnuté anonymní přihlášení (Authentication → Sign In / Providers).' : clIsNet(e) ? 'Nejde se spojit se serverem – zkontroluj internet, adresu a klíč.' : 'Chyba: ' + (e.message || e.code)});
   }
   render();
 }
