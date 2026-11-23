@@ -451,7 +451,8 @@ function throwDart(n, m) {
     else { s.rem = nr; g.tPts += c; if (win) { endTurn(g, {co: true}); finish(g, g.sides.indexOf(s), 'ZAVŘENO ' + dartLbl({n, m})); } else if (g.darts.length === 3) endTurn(g); }
   } else if (g.type === 'countup') {
     s.score += v; g.tPts += v; g.darts.push({n, m, c: v});
-    if (g.darts.length === 3) endTurn(g);
+    if (st.end === 'target' && s.score >= st.target) { endTurn(g, {co: true}); finish(g, g.sides.indexOf(s), 'CÍL ' + st.target + ' · ' + s.score + ' BODŮ'); }
+    else if (g.darts.length === 3) { endTurn(g); cuRoundsEnd(g); }
   } else {
     let mk = 0, gained = 0;
     if (CR.includes(n)) {
@@ -468,6 +469,14 @@ function throwDart(n, m) {
   }
   persistCurrent(); buzz();
 }
+function cuRoundsEnd(g) {
+  const st = g.settings, ns = g.sides.length;
+  if (st.end !== 'rounds' || g.turns.length % ns || g.turns.length / ns < st.rounds) return;
+  const top = Math.max(...g.sides.map(x => x.score)), lead = g.sides.filter(x => x.score === top);
+  if (lead.length === 1) finish(g, g.sides.indexOf(lead[0]), 'PO ' + (g.turns.length / ns) + ' ' + plural(g.turns.length / ns, 'KOLE', 'KOLECH', 'KOLECH') + ' · ' + top + ' BODŮ');
+  else setFlash('REMÍZA ' + top + ' · HRAJE SE DALŠÍ KOLO', 'hot', 2600);
+}
+const cuSub = st => st.end === 'rounds' ? st.rounds + ' ' + plural(st.rounds, 'KOLO', 'KOLA', 'KOL') : st.end === 'target' ? 'CÍL ' + st.target : 'BEZ LIMITU';
 function endTurn(g, o = {}) {
   const p = curPlayer(g), s = g.sides[g.cur];
   g.turns.push({s: g.cur, p: p.id, d: g.darts.map(x => [x.n, x.m]), pts: o.bust ? 0 : g.tPts, mk: g.tMarks, b: o.bust ? 1 : 0, co: o.co ? 1 : 0, rb: g.tStartRem});
@@ -597,7 +606,7 @@ document.addEventListener('visibilitychange', () => { if (document.visibilitySta
 /* ---------- koncept hry ---------- */
 function newDraft(type) {
   const l = S.meta.lastDraft || {};
-  return {type, start: l.start || 501, inMode: l.inMode || 'straight', outMode: l.outMode || 'double', cricketMode: l.cricketMode || 'standard',
+  return {type, start: l.start || 501, inMode: l.inMode || 'straight', outMode: l.outMode || 'double', cricketMode: l.cricketMode || 'standard', cuEnd: l.cuEnd || 'none', cuRounds: l.cuRounds || 10, cuTarget: l.cuTarget || 500,
     teams: !!l.teams, teamSize: l.teamSize || 2, order: (l.order || []).filter(pl),
     teamList: (l.teamList && l.teamList.length >= 2 ? l.teamList : [{ids: []}, {ids: []}]).map(t => ({ids: (t.ids || []).filter(pl)}))};
 }
@@ -1035,7 +1044,7 @@ V.home = () => {
     const sum = g.sides.slice(0, 2).map(s => esc(s.name) + ' ' + sideVal(g, s)).join(' — ') + (g.sides.length > 2 ? ' …' : '');
     resume = `<button class="resume" data-a="go" data-v="game"><span><small>ROZEHRANÁ HRA · KOLO ${roundNo(g)}</small><b>${typeTitle(g)} · ${sum}</b></span>${IC.arrow}</button>`;
   }
-  const games = [['x01', 'X01', '301 · 501 · 701 · Single / Double / Master Out'], ['cricket', 'CRICKET', 'Standard · Cut-Throat · No Score'], ['countup', 'COUNT UP', 'Sčítání bodů bez limitu kol']];
+  const games = [['x01', 'X01', '301 · 501 · 701 · Single / Double / Master Out'], ['cricket', 'CRICKET', 'Standard · Cut-Throat · No Score'], ['countup', 'COUNT UP', 'Na počet kol · na cíl · bez limitu']];
   if (CL.on) {
     const ago = t => { const m = Math.round((Date.now() - Date.parse(t)) / 60000); return !(m >= 0) ? '' : m < 1 ? 'TEĎ' : m < 60 ? 'PŘED ' + m + ' MIN' : dstr(Date.parse(t)); };
     resume += CL.live.length ? `<h2 class="lbl" style="padding:18px 20px 8px">ROZEHRANÉ V KANCELÁŘI ${esc(CL.code)}</h2>` + CL.live.map(r => { const cur = g && g.id === r.id; return `<button class="resume${cur ? '' : ' lv'}" data-a="openLive" data-id="${esc(r.id)}"><span><small>${cur ? 'TVOJE OTEVŘENÁ HRA · ' : ''}${esc(r.created_by || '')}${r.created_by ? ' · ' : ''}${ago(r.created_at)}</small><b>${clLiveTitle(r)}</b></span>${IC.arrow}</button>`; }).join('') : '';
@@ -1051,7 +1060,13 @@ V.setup = () => {
   let body = seg('HRA', 'type', [['x01', 'X01'], ['cricket', 'CRICKET'], ['countup', 'COUNT UP']], d.type);
   if (d.type === 'x01') body += seg('POČÁTEČNÍ SKÓRE', 'start', [[301, '301'], [501, '501'], [701, '701']], d.start, 'big') + seg('ZAČÁTEK', 'inMode', [['straight', 'STRAIGHT IN'], ['double', 'DOUBLE IN']], d.inMode) + seg('KONEC', 'outMode', [['single', 'SINGLE'], ['double', 'DOUBLE'], ['master', 'MASTER']], d.outMode) + `<p class="note">${OUTNOTE[d.outMode]}</p>`;
   if (d.type === 'cricket') body += seg('VARIANTA', 'cricketMode', [['standard', 'STANDARD'], ['cutthroat', 'CUT-THROAT'], ['noscore', 'NO SCORE']], d.cricketMode) + `<p class="note">${CMNOTE[d.cricketMode]}</p>`;
-  if (d.type === 'countup') body += `<p class="note">Sčítají se všechny body bez limitu kol. Hru ukončíš v menu hry vpravo nahoře – vyhrává nejvyšší skóre.</p>`;
+  if (d.type === 'countup') {
+    const num = (k, v, min, max, ph) => `<input class="inp" type="number" inputmode="numeric" min="${min}" max="${max}" data-k="${k}" value="${v}" placeholder="${ph}" aria-label="${ph}">`;
+    body += seg('KONEC HRY', 'cuEnd', [['none', 'BEZ LIMITU'], ['rounds', 'POČET KOL'], ['target', 'CÍL']], d.cuEnd);
+    if (d.cuEnd === 'rounds') body += seg('POČET KOL', 'cuRounds', [[5, '5'], [10, '10'], [15, '15'], [20, '20']], d.cuRounds, 'big') + `<section class="col g8"><h2 class="lbl">NEBO VLASTNÍ (1–99)</h2>${num('cuRounds', d.cuRounds, 1, 99, 'Počet kol')}</section>`;
+    if (d.cuEnd === 'target') body += seg('CÍLOVÉ SKÓRE', 'cuTarget', [[300, '300'], [500, '500'], [1000, '1000']], d.cuTarget, 'big') + `<section class="col g8"><h2 class="lbl">NEBO VLASTNÍ (10–9999)</h2>${num('cuTarget', d.cuTarget, 10, 9999, 'Cílové skóre')}</section>`;
+    body += `<p class="note">${d.cuEnd === 'rounds' ? 'Po posledním kole vyhrává nejvyšší skóre. Při remíze se hraje další kolo, dokud někdo nevede.' : d.cuEnd === 'target' ? 'Vyhrává, kdo první dosáhne cílového skóre – hra končí hned tou šipkou.' : 'Sčítají se všechny body bez limitu kol. Hru ukončíš v menu hry vpravo nahoře – vyhrává nejvyšší skóre.'}</p>`;
+  }
   return `<div class="app">${hdr('NOVÁ HRA', 'home')}<main class="pad col g22">${body}</main><div class="foot"><button class="cta" data-a="go" data-v="players">DÁL: HRÁČI A TÝMY ${IC.arrow}</button></div></div>`;
 };
 V.players = () => {
@@ -1107,6 +1122,7 @@ function infoBar(g) {
     return `<div class="info">NA ŘADĚ ${who}${s.rem <= 180 ? ' · ZATÍM BEZ ZAVŘENÍ' : ''}</div>`;
   }
   if (g.type === 'cricket') return `<div class="info">NA ŘADĚ ${who} · 1–14 = MISS</div>`;
+  if (g.settings.end === 'target') return `<div class="info">NA ŘADĚ ${who} · DO CÍLE ${Math.max(0, g.settings.target - g.sides[g.cur].score)}</div>`;
   return `<div class="info">NA ŘADĚ ${who}</div>`;
 }
 function roundStrip(g) {
@@ -1245,7 +1261,7 @@ V.game = () => {
   let title, sub;
   if (g.type === 'x01') { title = st.start + ' · ' + OUTL[st.outMode]; sub = (st.inMode === 'double' ? 'DOUBLE IN' : 'STRAIGHT IN') + ' · KOLO ' + r; }
   else if (g.type === 'cricket') { title = 'CRICKET · ' + CML[st.cricketMode]; sub = 'KOLO ' + r; }
-  else { title = 'COUNT UP'; sub = 'KOLO ' + r + ' · BEZ LIMITU'; }
+  else { title = 'COUNT UP'; sub = st.end === 'rounds' ? 'KOLO ' + Math.min(r, st.rounds) + ' / ' + st.rounds + (r > st.rounds ? ' · PRODLOUŽENÍ' : '') : 'KOLO ' + r + ' · ' + cuSub(st); }
   if (g.cloud && CL.on && (!CL.ready || !CL.net || CL.q.length)) sub += CL.ready && CL.net ? ' · ODESÍLÁM' : ' · BEZ PŘIPOJENÍ';
   return `<div class="app game"><header class="ghd gx"><button class="ib" data-a="go" data-v="home" aria-label="Zpět do menu">${IC.back}</button><div><h1>${title}</h1><span>${sub}</span></div><p class="ghr"><button class="ib" data-a="inp" aria-label="${S.inp === 'board' ? 'Zadávat čísly' : 'Zadávat terčem'}">${S.inp === 'board' ? IC.grid : IC.tgt}</button><button class="ib" data-a="gmenu" aria-label="Menu hry">${IC.menu}</button></p></header>
   <div class="gmid">${g.type === 'cricket' ? cricketBoard(g) : scoreBoard(g)}${infoBar(g)}${roundStrip(g)}</div>${keypad(g)}${S.flash && S.flash.until > Date.now() ? `<div class="flash ${S.flash.kind}" role="status">${esc(S.flash.text)}</div>` : ''}</div>`;
@@ -1396,7 +1412,7 @@ const A = {
   set(ds) {
     const d = S.draft; let v = ds.v;
     if (ds.k === 'teams') { convertTeams(d, v === 'true'); return; }
-    if (ds.k === 'start' || ds.k === 'teamSize') v = +v;
+    if (['start', 'teamSize', 'cuRounds', 'cuTarget'].includes(ds.k)) v = +v;
     d[ds.k] = v;
     if (ds.k === 'teamSize') d.teamList.forEach(t => { t.ids = t.ids.slice(0, v); });
   },
@@ -1418,7 +1434,7 @@ const A = {
     const d = S.draft;
     if (!canStart(d)) return;
     S.meta.lastDraft = JSON.parse(JSON.stringify(d)); persistMeta();
-    const settings = d.type === 'x01' ? {start: d.start, inMode: d.inMode, outMode: d.outMode} : d.type === 'cricket' ? {cricketMode: d.cricketMode} : {};
+    const settings = d.type === 'x01' ? {start: d.start, inMode: d.inMode, outMode: d.outMode} : d.type === 'cricket' ? {cricketMode: d.cricketMode} : {end: d.cuEnd || 'none', rounds: Math.min(99, Math.max(1, Math.round(+d.cuRounds) || 10)), target: Math.min(9999, Math.max(10, Math.round(+d.cuTarget) || 500))};
     S.current = newGame(d.type, settings, buildSides(d)); if (CL.on) clNewGame(S.current); persistCurrent();
     S.view = 'game'; S.flash = null; wake(); window.scrollTo(0, 0);
   },
@@ -1499,6 +1515,10 @@ document.addEventListener('submit', e => {
   e.preventDefault();
   const f = F[e.target.dataset.f];
   if (f) { f(e.target); render(); }
+});
+document.addEventListener('input', e => {
+  const k = e.target.dataset && e.target.dataset.k;
+  if (S.draft && (k === 'cuRounds' || k === 'cuTarget') && e.target.value !== '') S.draft[k] = +e.target.value;
 });
 document.addEventListener('change', e => {
   if (e.target.id !== 'impf' || !e.target.files || !e.target.files[0]) return;
