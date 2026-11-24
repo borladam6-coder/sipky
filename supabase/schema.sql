@@ -29,6 +29,7 @@ create table if not exists public.players (
 );
 create index if not exists players_office on public.players(office_id);
 alter table public.players add column if not exists theme jsonb;   -- motiv terče hráče
+alter table public.players add column if not exists image jsonb;   -- obrázek v terči (zmenšený JPEG)
 
 create table if not exists public.games (
   id         text primary key,
