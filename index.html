@@ -295,7 +295,7 @@ button:disabled{cursor:default}
 'use strict';
 const $app = document.getElementById('app'), $sheet = document.getElementById('sheet'), $toast = document.getElementById('toast');
 const KEY = 'sipky.v1';
-const APP_VERSION = '1.8';
+const APP_VERSION = '1.9';
 const PALETTE = ['#FF6B3D','#2EC5F0','#B28CFF','#19C37D','#FF8FB1','#FFB547','#7CC4FF','#D9DCE1'];
 const TEAMC = ['#FF6B3D','#2EC5F0','#B28CFF','#19C37D'], TEAMN = ['A','B','C','D'];
 const CR = [20,19,18,17,16,15,25];
@@ -727,7 +727,7 @@ function importData(txt) {
   let np = 0, nm = 0;
   d.players.forEach(p => {
     if (p && p.id && p.name && !pids.has(String(p.id))) {
-      S.players.push(Object.assign({id: String(p.id), name: String(p.name).slice(0, 20), color: /^#[0-9a-f]{6}$/i.test(p.color) ? p.color : PALETTE[S.players.length % PALETTE.length]}, typeof p.theme === 'string' ? {theme: p.theme} : p.theme && typeof p.theme === 'object' ? {theme: cleanTheme(p.theme).t} : {}));
+      S.players.push(Object.assign({id: String(p.id), name: String(p.name).slice(0, 20), color: /^#[0-9a-f]{6}$/i.test(p.color) ? p.color : PALETTE[S.players.length % PALETTE.length]}, typeof p.theme === 'string' ? {theme: p.theme} : p.theme && typeof p.theme === 'object' ? {theme: cleanTheme(p.theme).t} : {}, cleanImg(p.img) ? {img: cleanImg(p.img)} : {}));
       pids.add(String(p.id)); np++;
     }
   });
@@ -1225,6 +1225,9 @@ function cleanTheme(t) {
     texture: ['sisal', 'carbon', 'brushed'].includes(t.texture) ? t.texture : 'none', shade: t.shade !== false, edge: t.edge ? c(t.edge, null, 'edge') : null,
     highlight: c(t.highlight, '#FFD400', 'highlight'), dots: {on: c(D.on, '#FFD400', 'dots'), off: c(D.off, '#3A3D46', 'dots')}}};
 }
+const IMGRX = /^data:image\/(jpeg|webp|png);base64,[A-Za-z0-9+/=]+$/;
+function cleanImg(v) { if (!v || typeof v !== 'object' || typeof v.src !== 'string' || v.src.length > 400000 || !IMGRX.test(v.src)) return null; return {src: v.src, mix: [.35, .55, .75].includes(+v.mix) ? +v.mix : .55}; }
+const imgOf = pid => cleanImg((pl(pid) || {}).img);
 function themeObj(v) { if (v && typeof v === 'object') return cleanTheme(v).t; return THEMES.find(x => x.key === v) || THEMES[0]; }
 const themeOf = pid => themeObj((pl(pid) || {}).theme);
 /* ---------- zadávání terčem ---------- */
@@ -1245,24 +1248,24 @@ function bdArc(r0, r1, d0, d1) {
 function bdXY(r, d) { const a = d * Math.PI / 180; return [(r * Math.cos(a)).toFixed(2), (r * Math.sin(a)).toFixed(2)]; }
 /* Vykreslí terč v daném motivu. o: {ids, labels, dim(n), co, bullDim, open} */
 function boardArt(t, o = {}) {
-  const {RB, R, RIM, rS, rT} = BG;
+  const {RB, R, RIM, rS, rT} = BG, im = o.img, fo = m => im ? (m === 1 ? im.mix : Math.min(1, im.mix + .25)) : 1;
   let cells = '', carb = '', glow = '', labs = '', dimo = '';
   BORD.forEach((n, i) => {
     const mid = -90 + i * 18, ev = i % 2 === 0, dm = o.dim && o.dim(n);
     [[RB, rS, 1], [rS, rT, 3], [rT, R, 2]].forEach(([r0, r1, m]) => {
       const f = m === 1 ? t.single[ev ? 0 : 1] : m === 3 ? t.triple[ev ? 0 : 1] : t.double[ev ? 0 : 1], d = bdArc(r0, r1, mid - 9, mid + 9);
-      cells += `<path${o.ids ? ` id="b${n}_${m}" data-f="${f}"` : ''} d="${d}" fill="${f}"/>`;
+      cells += `<path${o.ids ? ` id="b${n}_${m}" data-f="${f}" data-fo="${fo(m)}"` : ''} d="${d}" fill="${f}"${im ? ` fill-opacity="${fo(m)}"` : ''}/>`;
       if (t.texture === 'carbon' && m === 1 && ev) carb += `<path d="${d}" fill="url(#tCarbon)"/>`;
       if (t.glow && m !== 1) glow += `<path d="${bdArc(r0 + 2, r1 - 2, mid - 7.5, mid + 7.5)}" fill="none" stroke="${m === 2 ? t.glow.double : t.glow.triple}" stroke-width="1.6"/>`;
       if (dm) dimo += `<path d="${d}" fill="#000" opacity=".62"/>`;
       if (o.labels) {
         const lr = m === 1 ? r0 + .62 * (r1 - r0) : (r0 + r1) / 2, [x, y] = bdXY(lr, mid), tc = m === 1 ? (ev ? t.labels.singleDark : t.labels.singleLight) : m === 2 ? t.labels.double : t.labels.triple;
-        labs += `<text id="l${n}_${m}" x="${x}" y="${y}" fill="${tc}" data-f="${tc}"${dm ? ' opacity=".35"' : ''} font-size="${m === 1 ? 23 : m === 2 ? 15 : 14}"${m === 1 ? ' font-style="italic" font-weight="800"' : ''} text-anchor="middle" dominant-baseline="central">${m === 1 ? n : (m === 2 ? 'D' : 'T') + n}</text>`;
+        labs += `<text id="l${n}_${m}" x="${x}" y="${y}" fill="${tc}" data-f="${tc}"${dm ? ' opacity=".35"' : ''}${im ? ' stroke="#000" stroke-opacity=".55" stroke-width="3" paint-order="stroke"' : ''} font-size="${m === 1 ? 23 : m === 2 ? 15 : 14}"${m === 1 ? ' font-style="italic" font-weight="800"' : ''} text-anchor="middle" dominant-baseline="central">${m === 1 ? n : (m === 2 ? 'D' : 'T') + n}</text>`;
       }
     });
   });
-  let s = `<defs>${TDEFS}<clipPath id="tClip"><circle r="${R}"/></clipPath></defs><circle r="${RIM}" fill="${t.rim}"/><g>${cells}${carb}</g>`;
-  if (t.texture === 'sisal' || t.texture === 'brushed') s += `<rect x="${-R}" y="${-R}" width="${2 * R}" height="${2 * R}" filter="url(#t${t.texture === 'sisal' ? 'Sisal' : 'Brushed'})" opacity="${t.texture === 'sisal' ? .22 : .5}" clip-path="url(#tClip)" pointer-events="none"/>`;
+  let s = `<defs>${TDEFS}<clipPath id="tClip"><circle r="${R}"/></clipPath></defs><circle r="${RIM}" fill="${t.rim}"/>${im ? `<image href="${im.src}" x="${-R}" y="${-R}" width="${2 * R}" height="${2 * R}" preserveAspectRatio="xMidYMid slice" clip-path="url(#tClip)"/>` : ''}<g>${cells}${im ? '' : carb}</g>`;
+  if (!im && (t.texture === 'sisal' || t.texture === 'brushed')) s += `<rect x="${-R}" y="${-R}" width="${2 * R}" height="${2 * R}" filter="url(#t${t.texture === 'sisal' ? 'Sisal' : 'Brushed'})" opacity="${t.texture === 'sisal' ? .22 : .5}" clip-path="url(#tClip)" pointer-events="none"/>`;
   if (glow) s += `<g filter="url(#tGlow)">${glow}</g>`;
   let w = '';
   for (let i = 0; i < 20; i++) { const d = -90 + i * 18 - 9, [x0, y0] = bdXY(RB, d), [x1, y1] = bdXY(R, d); w += `<line x1="${x0}" y1="${y0}" x2="${x1}" y2="${y1}"/>`; }
@@ -1285,15 +1288,15 @@ function boardArt(t, o = {}) {
   return s;
 }
 function boardSvg(g) {
-  const t = themeOf(curPlayer(g).id);
+  const t = themeOf(curPlayer(g).id), img = imgOf(curPlayer(g).id);
   BD.hl = t.highlight;
   const dim = n => g.type === 'cricket' && (!CR.includes(n) || g.sides.every(s => s.marks[n] >= 3));
   let co = null;
   if (g.type === 'x01') { const s = g.sides[g.cur]; if (s.opened) { const c = checkout(s.rem, 3 - g.darts.length, g.settings.outMode); if (c && c[0] && c[0].n) co = c[0]; } }
   const bullDim = g.type === 'cricket' && g.sides.every(s => s.marks[25] >= 3);
-  return `<svg viewBox="${-BG.VB / 2} ${-BG.VB / 2} ${BG.VB} ${BG.VB}" role="img" aria-label="Terč – polož prst na políčko a pusť">${boardArt(t, {ids: true, labels: true, dim, co, bullDim, open: BD.open})}</svg>`;
+  return `<svg viewBox="${-BG.VB / 2} ${-BG.VB / 2} ${BG.VB} ${BG.VB}" role="img" aria-label="Terč – polož prst na políčko a pusť">${boardArt(t, {ids: true, labels: true, dim, co, bullDim, open: BD.open, img})}</svg>`;
 }
-const boardMini = t => `<svg viewBox="${-BG.VB / 2} ${-BG.VB / 2} ${BG.VB} ${BG.VB}" aria-hidden="true">${boardArt(t, {labels: true})}</svg>`;
+const boardMini = (t, img) => `<svg viewBox="${-BG.VB / 2} ${-BG.VB / 2} ${BG.VB} ${BG.VB}" aria-hidden="true">${boardArt(t, {labels: true, img})}</svg>`;
 function boardPad(g) {
   const n = V0.kind ? 3 : 2;
   return `<section class="bdp" aria-label="Zadání hodu – terč"><div class="bdw" id="bdw">${boardSvg(g)}<div class="bdtag" id="bdtag"></div></div>
@@ -1314,7 +1317,7 @@ function bdEls(h) {
   if (h.br) return [document.getElementById('bb' + h.m)];
   return [document.getElementById('b' + h.n + '_' + h.m), document.getElementById('l' + h.n + '_' + h.m)];
 }
-function bdPaint(h, on) { bdEls(h).forEach((el, i) => { if (el) el.setAttribute('fill', on ? (i ? '#0A0B0F' : BD.hl || '#FFD400') : el.getAttribute('data-f')); }); }
+function bdPaint(h, on) { bdEls(h).forEach((el, i) => { if (!el) return; el.setAttribute('fill', on ? (i ? '#0A0B0F' : BD.hl || '#FFD400') : el.getAttribute('data-f')); if (el.hasAttribute('data-fo')) el.setAttribute('fill-opacity', on ? 1 : el.getAttribute('data-fo')); }); }
 function bdSet(h, p) {
   if (bdKey(h) !== bdKey(BD.cur)) { bdPaint(BD.cur, false); bdPaint(h, true); BD.cur = h; }
   const t = document.getElementById('bdtag'), g = S.current;
@@ -1479,7 +1482,7 @@ function sheetBody(sh) {
     case 'edit': {
       const p = pl(sh.id);
       if (!p) return '';
-      return `<h2 class="sh2">UPRAVIT HRÁČE</h2><form class="col g8" data-f="edit"><label class="lbl" for="np">JMÉNO</label><input class="inp" id="np" name="name" maxlength="20" autocomplete="off" required value="${esc(sh.name)}"><span class="lbl">BARVA</span><div class="sw">${PALETTE.map(c => `<button type="button" data-a="pcolor" data-c="${c}" aria-label="Barva ${c}" aria-pressed="${c === sh.c}" style="background:${c}"></button>`).join('')}</div><span class="lbl">MOTIV TERČE</span><div class="thp">${boardMini(themeObj(sh.th))}</div><div class="ths">${THEMES.map(t => `<button type="button" data-a="pth" data-k="${t.key}" aria-pressed="${sh.th === t.key}"><i style="background:${t.double[0]}"></i><i style="background:${t.single[1]}"></i><i style="background:${t.double[1]}"></i><span>${esc(t.name)}</span></button>`).join('')}<button type="button" data-a="pthOpen" aria-pressed="${!!sh.th && typeof sh.th === 'object'}"><span>+ ${sh.th && typeof sh.th === 'object' ? esc(sh.th.name) : 'VLASTNÍ'}</span></button></div>${sh.cust ? `<textarea class="ta" id="pthj" aria-label="Vlastní motiv">${esc(sh.cj || '')}</textarea>${sh.terr ? `<p class="note" role="alert" style="color:#FF7A7A;font-size:14px">${esc(sh.terr)}</p>` : ''}<button type="button" class="btn" data-a="pthApply">POUŽÍT VLASTNÍ MOTIV</button>` : ''}<div class="row2"><button type="button" class="btn" data-a="closeSheet">ZRUŠIT</button><button type="submit" class="btn acc">ULOŽIT</button></div><button type="button" class="ghost" style="color:#FF7A7A" data-a="askDelP" data-id="${p.id}">SMAZAT HRÁČE</button></form>`;
+      return `<h2 class="sh2">UPRAVIT HRÁČE</h2><form class="col g8" data-f="edit"><label class="lbl" for="np">JMÉNO</label><input class="inp" id="np" name="name" maxlength="20" autocomplete="off" required value="${esc(sh.name)}"><span class="lbl">BARVA</span><div class="sw">${PALETTE.map(c => `<button type="button" data-a="pcolor" data-c="${c}" aria-label="Barva ${c}" aria-pressed="${c === sh.c}" style="background:${c}"></button>`).join('')}</div><span class="lbl">MOTIV TERČE</span><div class="thp">${boardMini(themeObj(sh.th), cleanImg(sh.img))}</div><div class="ths">${THEMES.map(t => `<button type="button" data-a="pth" data-k="${t.key}" aria-pressed="${sh.th === t.key}"><i style="background:${t.double[0]}"></i><i style="background:${t.single[1]}"></i><i style="background:${t.double[1]}"></i><span>${esc(t.name)}</span></button>`).join('')}<button type="button" data-a="pthOpen" aria-pressed="${!!sh.th && typeof sh.th === 'object'}"><span>+ ${sh.th && typeof sh.th === 'object' ? esc(sh.th.name) : 'VLASTNÍ'}</span></button></div>${sh.cust ? `<textarea class="ta" id="pthj" aria-label="Vlastní motiv">${esc(sh.cj || '')}</textarea>${sh.terr ? `<p class="note" role="alert" style="color:#FF7A7A;font-size:14px">${esc(sh.terr)}</p>` : ''}<button type="button" class="btn" data-a="pthApply">POUŽÍT VLASTNÍ MOTIV</button>` : ''}<span class="lbl">OBRÁZEK V TERČI</span>${sh.imgBusy ? '<p class="note">Zpracovávám obrázek…</p>' : ''}<div class="row2"><label class="btn" for="pimg">${sh.img ? 'JINÝ OBRÁZEK' : 'NAHRÁT OBRÁZEK'}</label>${sh.img ? '<button type="button" class="btn" data-a="pimgDel">ODEBRAT</button>' : ''}</div><input type="file" id="pimg" accept="image/*" hidden>${sh.img ? seg('PRŮHLEDNOST POLÍ', 'pimgMix', [['0.35', 'VÍC OBRÁZKU'], ['0.55', 'STŘED'], ['0.75', 'VÍC BAREV']], String(sh.img.mix), 'sm', 'pimgMix') : ''}${sh.imgErr ? `<p class="note" role="alert" style="color:#FF7A7A;font-size:14px">${esc(sh.imgErr)}</p>` : ''}<div class="row2"><button type="button" class="btn" data-a="closeSheet">ZRUŠIT</button><button type="submit" class="btn acc">ULOŽIT</button></div><button type="button" class="ghost" style="color:#FF7A7A" data-a="askDelP" data-id="${p.id}">SMAZAT HRÁČE</button></form>`;
     }
     case 'pick': {
       const used = new Set(assigned(S.draft)), av = S.players.filter(p => !used.has(p.id));
@@ -1596,7 +1599,9 @@ const A = {
   spickOpen() { S.sheet = {k: 'spick'}; },
   spick(ds) { S.stats.pid = ds.id; S.sheet = null; },
   newpOpen(ds) { S.sheet = {k: 'newp', ctx: ds.ctx, focus: true}; },
-  editp(ds) { const p = pl(ds.id); if (p) S.sheet = {k: 'edit', id: p.id, name: p.name, c: p.color, th: p.theme || 'turnaj', focus: true}; },
+  editp(ds) { const p = pl(ds.id); if (p) S.sheet = {k: 'edit', id: p.id, name: p.name, c: p.color, th: p.theme || 'turnaj', img: cleanImg(p.img), focus: true}; },
+  pimgDel() { const i = document.getElementById('np'); if (i) S.sheet.name = i.value; S.sheet.img = null; },
+  pimgMix(ds) { const i = document.getElementById('np'); if (i) S.sheet.name = i.value; if (S.sheet.img) S.sheet.img.mix = +ds.v; },
   pth(ds) { const i = document.getElementById('np'); if (i) S.sheet.name = i.value; S.sheet.th = ds.k; S.sheet.cust = false; },
   pthOpen() { const i = document.getElementById('np'); if (i) S.sheet.name = i.value; S.sheet.cust = !S.sheet.cust; if (S.sheet.th && typeof S.sheet.th === 'object' && !S.sheet.cj) S.sheet.cj = JSON.stringify(S.sheet.th, null, 1); },
   pthApply() {
@@ -1640,7 +1645,7 @@ const F = {
     const p = pl(S.sheet.id), name = form.elements.name.value.trim().slice(0, 20);
     if (!p || !name) return;
     if (S.players.some(x => x !== p && x.name.toLowerCase() === name.toLowerCase())) { toast('Hráč ' + name + ' už existuje'); return; }
-    p.name = name; p.color = S.sheet.c; if (S.sheet.th) p.theme = S.sheet.th; persistPlayers(); S.sheet = null;
+    p.name = name; p.color = S.sheet.c; if (S.sheet.th) p.theme = S.sheet.th; if (S.sheet.img) p.img = S.sheet.img; else delete p.img; persistPlayers(); S.sheet = null;
   }
 };
 document.addEventListener('click', e => {
@@ -1662,6 +1667,21 @@ document.addEventListener('input', e => {
   if (S.draft && (k === 'cuRounds' || k === 'cuTarget') && e.target.value !== '') S.draft[k] = +e.target.value;
 });
 document.addEventListener('change', e => {
+  if (e.target.id === 'pimg' && e.target.files && e.target.files[0] && S.sheet && S.sheet.k === 'edit') {
+    const sh = S.sheet, i = document.getElementById('np'); if (i) sh.name = i.value;
+    sh.imgBusy = true; sh.imgErr = ''; render();
+    const url = URL.createObjectURL(e.target.files[0]), img = new Image();
+    img.onload = () => {
+      const sz = 480, c = document.createElement('canvas'), k = Math.min(img.naturalWidth, img.naturalHeight);
+      c.width = c.height = sz;
+      c.getContext('2d').drawImage(img, (img.naturalWidth - k) / 2, (img.naturalHeight - k) / 2, k, k, 0, 0, sz, sz);
+      let src = c.toDataURL('image/jpeg', .72); if (src.length > 380000) src = c.toDataURL('image/jpeg', .5);
+      URL.revokeObjectURL(url); sh.img = {src, mix: sh.img ? sh.img.mix : .55}; sh.imgBusy = false; render();
+    };
+    img.onerror = () => { URL.revokeObjectURL(url); sh.imgBusy = false; sh.imgErr = 'Tenhle obrázek nejde načíst – zkus jiný (JPG nebo PNG).'; render(); };
+    img.src = url;
+    return;
+  }
   if (e.target.id !== 'impf' || !e.target.files || !e.target.files[0]) return;
   const r = new FileReader();
   r.onload = () => { if (importData(String(r.result))) { S.sheet = null; render(); } };
@@ -1759,10 +1779,10 @@ function clDisconnect() {
 }
 /* --- čtení ze serveru --- */
 async function clLoadPlayers() {
-  const {data, error} = await CL.sb.from('players').select('id,name,color,theme').eq('office_id', CL.office).eq('archived', false).order('id');
+  const {data, error} = await CL.sb.from('players').select('id,name,color,theme,image').eq('office_id', CL.office).eq('archived', false).order('id');
   if (error) throw error;
   if (CL.q.some(o => o.k === 'p')) return;
-  S.players = data.map(p => Object.assign({id: p.id, name: p.name, color: p.color || PALETTE[0]}, p.theme ? {theme: p.theme} : {}));
+  S.players = data.map(p => Object.assign({id: p.id, name: p.name, color: p.color || PALETTE[0]}, p.theme ? {theme: p.theme} : {}, cleanImg(p.image) ? {img: cleanImg(p.image)} : {}));
   CL.pmap = Object.fromEntries(S.players.map(p => [p.id, clSig(p)]));
   LS.set('.c_p', S.players);
 }
@@ -1917,17 +1937,17 @@ function clMatchDone(m) {
   clPush({k: 'd', gid: m.id, row});
 }
 function clVoid(g) { CL.live = CL.live.filter(x => x.id !== g.id); CL.gid = null; clSaveState(); clPush({k: 'v', gid: g.id}); }
-const clSig = p => JSON.stringify([p.name, p.color, p.theme || null]);
+const clSig = p => JSON.stringify([p.name, p.color, p.theme || null, p.img || null]);
 function clPlayersSync() {
   const prev = CL.pmap || {}, now = {}, rows = [];
-  S.players.forEach(p => { now[p.id] = clSig(p); if (prev[p.id] !== now[p.id]) rows.push({id: p.id, name: p.name, color: p.color, theme: p.theme || null, archived: false}); });
+  S.players.forEach(p => { now[p.id] = clSig(p); if (prev[p.id] !== now[p.id]) rows.push({id: p.id, name: p.name, color: p.color, theme: p.theme || null, image: p.img || null, archived: false}); });
   Object.keys(prev).forEach(id => { if (!now[id]) { const [name, color] = JSON.parse(prev[id]); rows.push({id, name, color, archived: true}); } });
   CL.pmap = now;
   if (rows.length) clPush({k: 'p', rows});
 }
 function clUpload() {
   const lp = LS.get('.p') || [], lm = LS.get('.m') || [], byName = new Map(S.players.map(p => [p.name.toLowerCase(), p.id])), map = {};
-  lp.forEach(p => { const ex = byName.get(p.name.toLowerCase()); if (ex) map[p.id] = ex; else { map[p.id] = p.id; S.players.push(Object.assign({id: p.id, name: p.name, color: p.color}, p.theme ? {theme: p.theme} : {})); byName.set(p.name.toLowerCase(), p.id); } });
+  lp.forEach(p => { const ex = byName.get(p.name.toLowerCase()); if (ex) map[p.id] = ex; else { map[p.id] = p.id; S.players.push(Object.assign({id: p.id, name: p.name, color: p.color}, p.theme ? {theme: p.theme} : {}, cleanImg(p.img) ? {img: cleanImg(p.img)} : {})); byName.set(p.name.toLowerCase(), p.id); } });
   persistPlayers();
   const fix = id => map[id] || id;
   let n = 0;
